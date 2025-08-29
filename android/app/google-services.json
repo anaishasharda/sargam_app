@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "282690968313",
+    "project_id": "sargam-50e82",
+    "storage_bucket": "sargam-50e82.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:282690968313:android:775a122bff58904239e028",
+        "android_client_info": {
+          "package_name": "com.example.sargam_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4LJ0fkY82W_9Z1c6u91sYG7-CEa2XQ_Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
