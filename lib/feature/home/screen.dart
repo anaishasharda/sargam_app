@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/audio_service.dart';
 
 void main() => runApp(const HomeScreen());
 
@@ -72,51 +73,492 @@ class _MainNavigationState extends State<MainNavigation> {
 
 // ---------------- CATEGORIES SCREEN ----------------
 
-class CategoriesScreen extends StatelessWidget {
+class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 
   @override
+  State<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends State<CategoriesScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  static final List<RagaData> _ragaDatabase = [
+    // Beginner Ragas
+    RagaData(
+      name: 'Raag Yaman',
+      level: 'Beginner',
+      description: 'A beautiful evening raga with a peaceful and romantic mood',
+      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
+      aarohAudioPath: 'assets/audio/yaman_aaroh.mp3',
+      avrohAudioPath: 'assets/audio/yaman_avroh.mp3',
+      swarmalikaAudioPath: 'assets/audio/yaman_swarmalika.mp3',
+    ),
+    RagaData(
+      name: 'Raag Bhoopali',
+      level: 'Beginner',
+      description: 'A pentatonic raga with a joyful and uplifting character',
+      notes: ['Sa', 'Re', 'Ga', 'Pa', 'Dha'],
+      aarohAudioPath: 'assets/audio/bhoopali_aaroh.mp3',
+      avrohAudioPath: 'assets/audio/bhoopali_avroh.mp3',
+      swarmalikaAudioPath: 'assets/audio/bhoopali_swarmalika.mp3',
+    ),
+    // Intermediate Ragas
+    RagaData(
+      name: 'Raag Bhairav',
+      level: 'Intermediate',
+      description: 'A morning raga with a serious and devotional mood',
+      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
+      aarohAudioPath: 'assets/audio/bhairav_aaroh.mp3',
+      avrohAudioPath: 'assets/audio/bhairav_avroh.mp3',
+      swarmalikaAudioPath: 'assets/audio/bhairav_swarmalika.mp3',
+    ),
+    RagaData(
+      name: 'Raag Des',
+      level: 'Intermediate',
+      description: 'A romantic raga with a sweet and melodious character',
+      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
+      aarohAudioPath: 'assets/audio/des_aaroh.mp3',
+      avrohAudioPath: 'assets/audio/des_avroh.mp3',
+      swarmalikaAudioPath: 'assets/audio/des_swarmalika.mp3',
+    ),
+    // Advanced Ragas
+    RagaData(
+      name: 'Raag Bhairavi',
+      level: 'Advanced',
+      description: 'A morning raga with deep emotional expression',
+      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
+      aarohAudioPath: 'assets/audio/bhairavi_aaroh.mp3',
+      avrohAudioPath: 'assets/audio/bhairavi_avroh.mp3',
+      swarmalikaAudioPath: 'assets/audio/bhairavi_swarmalika.mp3',
+    ),
+    RagaData(
+      name: 'Raag Durga',
+      level: 'Advanced',
+      description: 'A pentatonic raga with a powerful and majestic mood',
+      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha'],
+      aarohAudioPath: 'assets/audio/durga_aaroh.mp3',
+      avrohAudioPath: 'assets/audio/durga_avroh.mp3',
+      swarmalikaAudioPath: 'assets/audio/durga_swarmalika.mp3',
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
+
+    _fadeController.forward();
+    _slideController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _categoryTile(context, 'Beginner', 'Raags for beginners', [
-          'Raag Yaman',
-          'Raag Bhoopali',
-        ]),
-        _categoryTile(context, 'Intermediate', 'Raags for intermediate', [
-          'Raag Bhairav',
-          'Raag Des',
-        ]),
-        _categoryTile(context, 'Advanced', 'Raags for advanced', [
-          'Raag Bhairavi',
-          'Raag Durga',
-        ]),
-      ],
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: CustomScrollView(
+          slivers: [
+            // Welcome Header
+            SliverToBoxAdapter(child: _buildWelcomeHeader()),
+
+            // Quick Stats
+            SliverToBoxAdapter(child: _buildQuickStats()),
+
+            // Categories
+            SliverToBoxAdapter(child: _buildCategoriesSection()),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _categoryTile(
+  Widget _buildWelcomeHeader() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.deepPurpleAccent.withOpacity(0.3),
+            Colors.purpleAccent.withOpacity(0.2),
+            Colors.blueAccent.withOpacity(0.1),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.music_note,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Welcome to Sargam',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Master the art of Indian classical music',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.trending_up, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Start your musical journey today',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStats() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard('6', 'Ragas', Icons.music_note, Colors.green),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              '3',
+              'Levels',
+              Icons.trending_up,
+              Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              '18',
+              'Practice Modes',
+              Icons.play_circle,
+              Colors.orange,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    String value,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoriesSection() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Choose Your Level',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select a difficulty level to start practicing',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildCategoryTile(
+            context,
+            'Beginner',
+            'Perfect for newcomers to Indian classical music',
+            _ragaDatabase.where((r) => r.level == 'Beginner').toList(),
+            Colors.green,
+            Icons.school,
+            'Start Here',
+          ),
+          const SizedBox(height: 16),
+          _buildCategoryTile(
+            context,
+            'Intermediate',
+            'For those with some experience in classical music',
+            _ragaDatabase.where((r) => r.level == 'Intermediate').toList(),
+            Colors.blue,
+            Icons.trending_up,
+            'Level Up',
+          ),
+          const SizedBox(height: 16),
+          _buildCategoryTile(
+            context,
+            'Advanced',
+            'Master-level ragas for experienced practitioners',
+            _ragaDatabase.where((r) => r.level == 'Advanced').toList(),
+            Colors.purple,
+            Icons.star,
+            'Master',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryTile(
     BuildContext context,
     String title,
     String subtitle,
-    List<String> ragas,
+    List<RagaData> ragas,
+    Color color,
+    IconData icon,
+    String badge,
   ) {
-    return Card(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.arrow_forward_ios),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => LevelDetailScreen(level: title, ragas: ragas),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LevelDetailScreen(level: title, ragas: ragas),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color.withOpacity(0.8), color.withOpacity(0.6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              badge,
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.music_note,
+                            size: 16,
+                            color: Colors.grey[500],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${ragas.length} ragas available',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.grey[600],
+                    size: 16,
+                  ),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -126,7 +568,7 @@ class CategoriesScreen extends StatelessWidget {
 
 class LevelDetailScreen extends StatelessWidget {
   final String level;
-  final List<String> ragas;
+  final List<RagaData> ragas;
 
   const LevelDetailScreen({
     super.key,
@@ -139,56 +581,155 @@ class LevelDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF240046),
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text('$level Ragas'),
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.white),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$level Ragas',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              '${ragas.length} ragas available',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(20),
         itemCount: ragas.length,
         itemBuilder: (context, index) {
-          return Card(
-            color: Colors.white,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+          final raga = ragas[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
-            child: ListTile(
-              leading: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.deepPurpleAccent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: const Icon(
-                  Icons.music_note,
-                  color: Colors.deepPurpleAccent,
-                  size: 24,
-                ),
-              ),
-              title: Text(
-                ragas[index],
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              subtitle: Text(
-                'Tap to practice $ragas[index]',
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        RagaPracticeOptionsScreen(ragaName: ragas[index]),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RagaPracticeOptionsScreen(ragaData: raga),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.deepPurpleAccent.withOpacity(0.8),
+                              Colors.purpleAccent.withOpacity(0.6),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(
+                          Icons.music_note,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              raga.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              raga.description,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Notes: ${raga.notes.join(' ')}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.grey[600],
+                          size: 16,
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
           );
         },
@@ -200,9 +741,9 @@ class LevelDetailScreen extends StatelessWidget {
 // ---------------- RAGA PRACTICE OPTIONS SCREEN ----------------
 
 class RagaPracticeOptionsScreen extends StatelessWidget {
-  final String ragaName;
+  final RagaData ragaData;
 
-  const RagaPracticeOptionsScreen({super.key, required this.ragaName});
+  const RagaPracticeOptionsScreen({super.key, required this.ragaData});
 
   @override
   Widget build(BuildContext context) {
@@ -210,7 +751,7 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF240046),
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Text('Practice $ragaName'),
+        title: Text('Practice ${ragaData.name}'),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -247,7 +788,7 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    ragaName,
+                    ragaData.name,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -256,10 +797,19 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Choose your practice mode',
+                    ragaData.description,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       color: Colors.white.withOpacity(0.8),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Notes: ${ragaData.notes.join(' ')}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -275,28 +825,31 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
                   _practiceOptionTile(
                     context,
                     'Practice Aaroh',
-                    'Ascending scale practice',
+                    'Ascending scale practice with audio feedback',
                     Icons.trending_up,
                     Colors.green,
                     'Aaroh',
+                    ragaData.aarohAudioPath,
                   ),
                   const SizedBox(height: 16),
                   _practiceOptionTile(
                     context,
                     'Practice Avroh',
-                    'Descending scale practice',
+                    'Descending scale practice with audio feedback',
                     Icons.trending_down,
                     Colors.blue,
                     'Avroh',
+                    ragaData.avrohAudioPath,
                   ),
                   const SizedBox(height: 16),
                   _practiceOptionTile(
                     context,
                     'Practice Swarmalika',
-                    'Melody practice with lyrics',
+                    'Melody practice with lyrics and feedback',
                     Icons.lyrics,
                     Colors.orange,
                     'Swarmalika',
+                    ragaData.swarmalikaAudioPath,
                   ),
                 ],
               ),
@@ -314,6 +867,7 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
     IconData icon,
     Color color,
     String practiceType,
+    String audioPath,
   ) {
     return Card(
       color: Colors.white,
@@ -326,8 +880,9 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (_) => PracticeScreen(
-                ragaName: ragaName,
+                ragaData: ragaData,
                 practiceType: practiceType,
+                audioPath: audioPath,
               ),
             ),
           );
@@ -377,13 +932,15 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
 // ---------------- PRACTICE SCREEN ----------------
 
 class PracticeScreen extends StatefulWidget {
-  final String ragaName;
+  final RagaData ragaData;
   final String practiceType;
+  final String audioPath;
 
   const PracticeScreen({
     super.key,
-    required this.ragaName,
+    required this.ragaData,
     required this.practiceType,
+    required this.audioPath,
   });
 
   @override
@@ -392,9 +949,9 @@ class PracticeScreen extends StatefulWidget {
 
 class _PracticeScreenState extends State<PracticeScreen>
     with TickerProviderStateMixin {
-  bool _isPlaying = false;
-  bool _isRecording = false;
-  bool _isPitchDetectionActive = false;
+  final AudioService _audioService = AudioService();
+  bool _isAnalyzing = false;
+  AudioFeedback? _lastFeedback;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -409,12 +966,18 @@ class _PracticeScreenState extends State<PracticeScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     _pulseController.repeat(reverse: true);
+    _requestPermissions();
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _audioService.dispose();
     super.dispose();
+  }
+
+  Future<void> _requestPermissions() async {
+    await _audioService.requestPermissions();
   }
 
   @override
@@ -423,7 +986,7 @@ class _PracticeScreenState extends State<PracticeScreen>
       backgroundColor: const Color(0xFF240046),
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Text('${widget.practiceType} - ${widget.ragaName}'),
+        title: Text('${widget.practiceType} - ${widget.ragaData.name}'),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -468,17 +1031,30 @@ class _PracticeScreenState extends State<PracticeScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    widget.ragaName,
+                    widget.ragaData.name,
                     style: TextStyle(
                       fontSize: 18,
                       color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Notes: ${widget.ragaData.notes.join(' ')}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.7),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // Audio feedback section
+            if (_lastFeedback != null) _buildFeedbackCard(),
+
+            const SizedBox(height: 24),
 
             // Control buttons
             Expanded(
@@ -489,10 +1065,10 @@ class _PracticeScreenState extends State<PracticeScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _controlButton(
-                        'Play Audio',
+                        'Play Reference',
                         Icons.play_arrow,
                         Colors.green,
-                        _isPlaying,
+                        _audioService.isPlaying,
                         () => _toggleAudio(),
                       ),
                       _controlButton(
@@ -512,18 +1088,18 @@ class _PracticeScreenState extends State<PracticeScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _controlButton(
-                        'Pitch Detection',
-                        Icons.mic,
-                        Colors.blue,
-                        _isPitchDetectionActive,
-                        () => _togglePitchDetection(),
-                      ),
-                      _controlButton(
                         'Record Practice',
                         Icons.fiber_manual_record,
                         Colors.orange,
-                        _isRecording,
+                        _audioService.isRecording,
                         () => _toggleRecording(),
+                      ),
+                      _controlButton(
+                        'Analyze Audio',
+                        Icons.analytics,
+                        Colors.purple,
+                        _isAnalyzing,
+                        () => _analyzeAudio(),
                       ),
                     ],
                   ),
@@ -531,7 +1107,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                   const SizedBox(height: 32),
 
                   // Status indicator
-                  if (_isPitchDetectionActive)
+                  if (_audioService.isRecording)
                     AnimatedBuilder(
                       animation: _pulseAnimation,
                       builder: (context, child) {
@@ -542,17 +1118,36 @@ class _PracticeScreenState extends State<PracticeScreen>
                             height: 80,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.blue.withOpacity(0.3),
-                              border: Border.all(color: Colors.blue, width: 2),
+                              color: Colors.orange.withOpacity(0.3),
+                              border: Border.all(
+                                color: Colors.orange,
+                                width: 2,
+                              ),
                             ),
                             child: const Icon(
                               Icons.mic,
-                              color: Colors.blue,
+                              color: Colors.orange,
                               size: 32,
                             ),
                           ),
                         );
                       },
+                    ),
+
+                  if (_isAnalyzing)
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.purple.withOpacity(0.3),
+                        border: Border.all(color: Colors.purple, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.analytics,
+                        color: Colors.purple,
+                        size: 32,
+                      ),
                     ),
 
                   const SizedBox(height: 32),
@@ -641,44 +1236,289 @@ class _PracticeScreenState extends State<PracticeScreen>
     );
   }
 
-  void _toggleAudio() {
-    setState(() {
-      _isPlaying = !_isPlaying;
-    });
-    // TODO: Implement audio playback logic
+  Widget _buildFeedbackCard() {
+    if (_lastFeedback == null) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.analytics, color: Colors.deepPurpleAccent, size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Audio Analysis Results',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Accuracy scores
+          Row(
+            children: [
+              Expanded(
+                child: _buildAccuracyItem(
+                  'Pitch Accuracy',
+                  '${_lastFeedback!.pitchAccuracy.toStringAsFixed(1)}%',
+                  _getAccuracyColor(_lastFeedback!.pitchAccuracy.toInt()),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildAccuracyItem(
+                  'Tempo Accuracy',
+                  '${_lastFeedback!.tempoAccuracy.toStringAsFixed(1)}%',
+                  _getAccuracyColor(_lastFeedback!.tempoAccuracy.toInt()),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Overall feedback
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _lastFeedback!.overallFeedback,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+
+          if (_lastFeedback!.missedNotes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Missed Notes:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: _lastFeedback!.missedNotes
+                  .map(
+                    (note) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red[200]!),
+                      ),
+                      child: Text(
+                        note,
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+
+          if (_lastFeedback!.suggestions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Suggestions:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            ..._lastFeedback!.suggestions.map(
+              (suggestion) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      size: 16,
+                      color: Colors.amber[600],
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        suggestion,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
-  void _stopAudio() {
-    setState(() {
-      _isPlaying = false;
-    });
-    // TODO: Implement audio stop logic
+  Widget _buildAccuracyItem(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        ],
+      ),
+    );
   }
 
-  void _togglePitchDetection() {
-    setState(() {
-      _isPitchDetectionActive = !_isPitchDetectionActive;
-    });
-    // TODO: Implement pitch detection logic
+  void _toggleAudio() async {
+    if (_audioService.isPlaying) {
+      await _audioService.stopAudio();
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Audio stopped'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+        ),
+      );
+    } else {
+      // Extract just the filename from the full path
+      final audioFileName = widget.audioPath.split('/').last;
+      await _audioService.playAudio(
+        audioFileName,
+        ragaName: widget.ragaData.name,
+        practiceType: widget.practiceType,
+      );
+      setState(() {});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Playing ${widget.practiceType} for ${widget.ragaData.name}\n(Using TTS - Add audio files to assets/audio/ for real playback)',
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+        ),
+      );
+    }
   }
 
-  void _toggleRecording() {
+  void _stopAudio() async {
+    await _audioService.stopAudio();
+    setState(() {});
+  }
+
+  void _toggleRecording() async {
+    if (_audioService.isRecording) {
+      final recordingPath = await _audioService.stopRecording();
+      _pulseController.stop();
+      setState(() {});
+
+      if (recordingPath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Recording saved: ${recordingPath.split('/').last}'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } else {
+      await _audioService.startRecording();
+      _pulseController.repeat(reverse: true);
+      setState(() {});
+    }
+  }
+
+  void _analyzeAudio() {
     setState(() {
-      _isRecording = !_isRecording;
+      _isAnalyzing = true;
     });
-    // TODO: Implement recording logic
+
+    // Simulate audio analysis
+    Future.delayed(const Duration(seconds: 3), () {
+      setState(() {
+        _isAnalyzing = false;
+        _lastFeedback = _generateSampleFeedback();
+      });
+    });
+
+    // TODO: Implement actual audio comparison logic
+  }
+
+  AudioFeedback _generateSampleFeedback() {
+    // Generate sample feedback based on practice type
+    final random = DateTime.now().millisecondsSinceEpoch % 100;
+
+    return AudioFeedback(
+      pitchAccuracy: 75.0 + (random % 20),
+      tempoAccuracy: 80.0 + (random % 15),
+      missedNotes: ['Sa', 'Re', 'Ga'].take(random % 3).toList(),
+      suggestions: [
+        'Try to hold each note for a longer duration',
+        'Focus on the transition between Sa and Re',
+        'Practice with a slower tempo first',
+      ],
+      overallFeedback:
+          'Good effort! Your pitch accuracy is improving. Focus on the missed notes and try to maintain consistent tempo.',
+    );
   }
 
   void _logPractice() {
     // TODO: Implement practice logging logic
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Practice session logged for ${widget.ragaName}'),
+        content: Text('Practice session logged for ${widget.ragaData.name}'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+  }
+
+  Color _getAccuracyColor(int accuracy) {
+    if (accuracy >= 90) return Colors.green;
+    if (accuracy >= 80) return Colors.blue;
+    if (accuracy >= 70) return Colors.orange;
+    return Colors.red;
   }
 }
 
@@ -1606,6 +2446,42 @@ class JournalEntry {
     required this.notes,
     required this.pitchAccuracy,
     required this.practiceTime,
+  });
+}
+
+class RagaData {
+  final String name;
+  final String level;
+  final String description;
+  final List<String> notes;
+  final String aarohAudioPath;
+  final String avrohAudioPath;
+  final String swarmalikaAudioPath;
+
+  RagaData({
+    required this.name,
+    required this.level,
+    required this.description,
+    required this.notes,
+    required this.aarohAudioPath,
+    required this.avrohAudioPath,
+    required this.swarmalikaAudioPath,
+  });
+}
+
+class AudioFeedback {
+  final double pitchAccuracy;
+  final double tempoAccuracy;
+  final List<String> missedNotes;
+  final List<String> suggestions;
+  final String overallFeedback;
+
+  AudioFeedback({
+    required this.pitchAccuracy,
+    required this.tempoAccuracy,
+    required this.missedNotes,
+    required this.suggestions,
+    required this.overallFeedback,
   });
 }
 
