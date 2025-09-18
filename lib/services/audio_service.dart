@@ -3,6 +3,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'tts_audio_service.dart';
+import 'audio_analysis_service.dart';
+import '../models/audio_characteristics.dart';
 
 class AudioService {
   static final AudioService _instance = AudioService._internal();
@@ -12,12 +14,11 @@ class AudioService {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioRecorder _audioRecorder = AudioRecorder();
   final TTSAudioService _ttsService = TTSAudioService();
+  final AudioAnalysisService _analysisService = AudioAnalysisService();
 
   bool _isPlaying = false;
   bool _isRecording = false;
   String? _currentRecordingPath;
-  String? _currentRagaName;
-  String? _currentPracticeType;
 
   bool get isPlaying => _isPlaying;
   bool get isRecording => _isRecording;
@@ -26,36 +27,85 @@ class AudioService {
   Future<bool> requestPermissions() async {
     final microphoneStatus = await Permission.microphone.request();
     final storageStatus = await Permission.storage.request();
-    
+
     // Initialize TTS service
     await _ttsService.initialize();
 
     return microphoneStatus.isGranted && storageStatus.isGranted;
   }
 
-  Future<void> playAudio(String audioPath, {String? ragaName, String? practiceType}) async {
+  /// Check if an audio file exists in assets
+  Future<bool> checkAudioFileExists(String audioPath) async {
+    try {
+      // Remove 'assets/' prefix if present
+      String assetPath = audioPath;
+      if (assetPath.startsWith('assets/')) {
+        assetPath = assetPath.substring(7);
+      }
+
+      print('Checking if audio file exists: $assetPath');
+
+      // Create a new AudioPlayer instance to avoid conflicts
+      final testPlayer = AudioPlayer();
+      try {
+        await testPlayer.setSource(AssetSource(assetPath));
+        await testPlayer.dispose();
+        print('Audio file exists: $assetPath');
+        return true;
+      } catch (e) {
+        await testPlayer.dispose();
+        print('Audio file does not exist: $audioPath');
+        print('Error: $e');
+        return false;
+      }
+    } catch (e) {
+      print('Audio file does not exist: $audioPath');
+      print('Error: $e');
+      return false;
+    }
+  }
+
+  Future<void> playAudio(
+    String audioPath, {
+    String? ragaName,
+    String? practiceType,
+  }) async {
     try {
       if (_isPlaying) {
         await stopAudio();
       }
 
-      _currentRagaName = ragaName;
-      _currentPracticeType = practiceType;
-
-      // Try to play actual audio file first
+      // Try to play actual audio file
       try {
-        await _audioPlayer.play(AssetSource(audioPath));
+        // Remove 'assets/' prefix if present, as AssetSource expects path relative to assets folder
+        String assetPath = audioPath;
+        if (assetPath.startsWith('assets/')) {
+          assetPath = assetPath.substring(7); // Remove 'assets/' prefix
+        }
+
+        print('Attempting to play audio file: $assetPath');
+        print('Original path: $audioPath');
+
+        // Set up completion handler
+        _audioPlayer.onPlayerComplete.listen((event) {
+          print('Audio playback completed');
+          _isPlaying = false;
+        });
+
+        await _audioPlayer.play(AssetSource(assetPath));
         _isPlaying = true;
-        print('Playing audio file: $audioPath');
+        print('Successfully playing audio file: $assetPath');
         return;
       } catch (e) {
-        print('Audio file not found, using TTS: $audioPath');
+        print('Failed to play audio file: $audioPath');
+        print('Error details: $e');
+        // Don't throw, fall through to TTS
       }
 
       // Fallback to TTS if audio file doesn't exist
       if (ragaName != null && practiceType != null) {
         _isPlaying = true;
-        
+
         switch (practiceType.toLowerCase()) {
           case 'aaroh':
             await _ttsService.playAaroh(ragaName);
@@ -76,7 +126,6 @@ class AudioService {
           _isPlaying = false;
         });
       }
-
     } catch (e) {
       print('Error playing audio: $e');
       _isPlaying = false;
@@ -131,9 +180,29 @@ class AudioService {
     }
   }
 
+  /// Start real-time analysis with recording
+  Future<Stream<AudioCharacteristics>> startRealTimeAnalysis() async {
+    if (_isRecording) {
+      throw Exception('Already recording');
+    }
+
+    _isRecording = true;
+    return await _analysisService.startRealTimeAnalysisWithRecording();
+  }
+
+  /// Stop real-time analysis and recording
+  Future<void> stopRealTimeAnalysis() async {
+    await _analysisService.stopRealTimeAnalysisWithRecording();
+    _isRecording = false;
+  }
+
+  /// Get the analysis service instance for direct access
+  AudioAnalysisService get analysisService => _analysisService;
+
   Future<void> dispose() async {
     await _audioPlayer.dispose();
     await _audioRecorder.dispose();
     await _ttsService.dispose();
+    await _analysisService.dispose();
   }
 }

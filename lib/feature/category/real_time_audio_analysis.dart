@@ -1,0 +1,515 @@
+import 'package:flutter/material.dart';
+import 'dart:async';
+import '../../services/audio_analysis_service.dart';
+import '../../models/audio_characteristics.dart';
+import '../../models/audio_feedback.dart';
+
+class RealTimeAudioAnalysis extends StatefulWidget {
+  final String referenceAudioPath;
+  final List<String> expectedNotes;
+  final Function(AudioFeedback) onAnalysisComplete;
+  final Function(AudioCharacteristics) onRealTimeUpdate;
+
+  const RealTimeAudioAnalysis({
+    super.key,
+    required this.referenceAudioPath,
+    required this.expectedNotes,
+    required this.onAnalysisComplete,
+    required this.onRealTimeUpdate,
+  });
+
+  @override
+  State<RealTimeAudioAnalysis> createState() => _RealTimeAudioAnalysisState();
+}
+
+class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
+    with TickerProviderStateMixin {
+  final AudioAnalysisService _analysisService = AudioAnalysisService();
+
+  StreamSubscription<AudioCharacteristics>? _analysisSubscription;
+  AudioCharacteristics? _currentCharacteristics;
+  AudioCharacteristics? _referenceCharacteristics;
+  bool _isAnalyzing = false;
+
+  late AnimationController _pulseController;
+  late AnimationController _waveController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _waveAnimation;
+
+  List<double> _waveformData = [];
+  Timer? _waveformTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+    _loadReferenceAudio();
+  }
+
+  @override
+  void dispose() {
+    _analysisSubscription?.cancel();
+    _pulseController.dispose();
+    _waveController.dispose();
+    _waveformTimer?.cancel();
+    _analysisService.dispose();
+    super.dispose();
+  }
+
+  void _initializeAnimations() {
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _waveController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    _waveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _waveController, curve: Curves.easeInOut),
+    );
+
+    _pulseController.repeat(reverse: true);
+    _waveController.repeat();
+  }
+
+  Future<void> _loadReferenceAudio() async {
+    try {
+      _referenceCharacteristics = await _analysisService.analyzeAudioFile(
+        widget.referenceAudioPath,
+      );
+    } catch (e) {
+      print('Error loading reference audio: $e');
+    }
+  }
+
+  void _startRealTimeAnalysis() async {
+    if (_isAnalyzing) return;
+
+    setState(() {
+      _isAnalyzing = true;
+    });
+
+    try {
+      // Use the new improved real-time analysis with recording
+      final analysisStream = await _analysisService
+          .startRealTimeAnalysisWithRecording();
+      _analysisSubscription = analysisStream.listen(
+        (characteristics) {
+          setState(() {
+            _currentCharacteristics = characteristics;
+          });
+          widget.onRealTimeUpdate(characteristics);
+          _updateWaveform(characteristics);
+        },
+        onError: (error) {
+          print('Real-time analysis error: $error');
+          _stopRealTimeAnalysis();
+        },
+      );
+    } catch (e) {
+      print('Error starting real-time analysis: $e');
+      setState(() {
+        _isAnalyzing = false;
+      });
+    }
+  }
+
+  void _stopRealTimeAnalysis() async {
+    if (!_isAnalyzing) return;
+
+    _analysisSubscription?.cancel();
+    await _analysisService.stopRealTimeAnalysisWithRecording();
+
+    setState(() {
+      _isAnalyzing = false;
+    });
+
+    // Perform final analysis if we have both reference and current characteristics
+    if (_referenceCharacteristics != null && _currentCharacteristics != null) {
+      try {
+        final feedback = await _analysisService.compareAudio(
+          _referenceCharacteristics!,
+          _currentCharacteristics!,
+          widget.expectedNotes,
+        );
+        widget.onAnalysisComplete(feedback);
+      } catch (e) {
+        print('Error comparing audio: $e');
+      }
+    }
+  }
+
+  void _updateWaveform(AudioCharacteristics characteristics) {
+    if (characteristics.spectrum.isNotEmpty) {
+      setState(() {
+        _waveformData = characteristics.spectrum.take(50).toList();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.deepPurpleAccent.withOpacity(0.1),
+            Colors.purpleAccent.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.deepPurpleAccent.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Real-Time Audio Analysis',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              _buildAnalysisButton(),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Real-time characteristics display
+          if (_currentCharacteristics != null) _buildCharacteristicsDisplay(),
+
+          const SizedBox(height: 20),
+
+          // Waveform visualization
+          if (_isAnalyzing) _buildWaveformVisualization(),
+
+          const SizedBox(height: 20),
+
+          // Analysis status
+          _buildAnalysisStatus(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalysisButton() {
+    return GestureDetector(
+      onTap: _isAnalyzing ? _stopRealTimeAnalysis : _startRealTimeAnalysis,
+      child: AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _isAnalyzing ? _pulseAnimation.value : 1.0,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _isAnalyzing ? Colors.red : Colors.green,
+                boxShadow: [
+                  BoxShadow(
+                    color: (_isAnalyzing ? Colors.red : Colors.green)
+                        .withOpacity(0.3),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Icon(
+                _isAnalyzing ? Icons.stop : Icons.mic,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCharacteristicsDisplay() {
+    if (_currentCharacteristics == null) return const SizedBox.shrink();
+
+    final characteristics = _currentCharacteristics!;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          // Pitch and Tempo
+          Row(
+            children: [
+              Expanded(
+                child: _buildCharacteristicItem(
+                  'Pitch',
+                  '${characteristics.pitch.toStringAsFixed(1)} Hz',
+                  Icons.trending_up,
+                  Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildCharacteristicItem(
+                  'Tempo',
+                  '${characteristics.tempo.toStringAsFixed(1)} BPM',
+                  Icons.speed,
+                  Colors.orange,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Volume and Notes
+          Row(
+            children: [
+              Expanded(
+                child: _buildCharacteristicItem(
+                  'Volume',
+                  '${(characteristics.volume * 100).toStringAsFixed(1)}%',
+                  Icons.volume_up,
+                  Colors.green,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildCharacteristicItem(
+                  'Notes',
+                  characteristics.notes.isNotEmpty
+                      ? characteristics.notes.join(', ')
+                      : 'None detected',
+                  Icons.music_note,
+                  Colors.purple,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Quality indicators
+          Row(
+            children: [
+              Expanded(
+                child: _buildQualityIndicator(
+                  'Quality',
+                  characteristics.qualityScore,
+                  Icons.star,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildQualityIndicator(
+                  'Brightness',
+                  (characteristics.spectralCentroid / 1000).clamp(0.0, 100.0),
+                  Icons.wb_sunny,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCharacteristicItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.white.withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQualityIndicator(String label, double value, IconData icon) {
+    final color = _getQualityColor(value);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            '${value.toStringAsFixed(1)}%',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.white.withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWaveformVisualization() {
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: AnimatedBuilder(
+        animation: _waveAnimation,
+        builder: (context, child) {
+          return CustomPaint(
+            painter: WaveformPainter(_waveformData, _waveAnimation.value),
+            size: Size.infinite,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildAnalysisStatus() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _isAnalyzing
+            ? Colors.green.withOpacity(0.2)
+            : Colors.grey.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _isAnalyzing ? Colors.green : Colors.grey,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _isAnalyzing ? Colors.green : Colors.grey,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _isAnalyzing ? 'Analyzing...' : 'Ready to analyze',
+            style: TextStyle(
+              color: _isAnalyzing ? Colors.green : Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getQualityColor(double value) {
+    if (value >= 80) return Colors.green;
+    if (value >= 60) return Colors.orange;
+    return Colors.red;
+  }
+}
+
+class WaveformPainter extends CustomPainter {
+  final List<double> waveformData;
+  final double animationValue;
+
+  WaveformPainter(this.waveformData, this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (waveformData.isEmpty) return;
+
+    final paint = Paint()
+      ..color = Colors.deepPurpleAccent
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    final width = size.width;
+    final height = size.height;
+    final centerY = height / 2;
+
+    for (int i = 0; i < waveformData.length; i++) {
+      final x = (i / waveformData.length) * width;
+      final y = centerY - (waveformData[i] * height * 0.4 * animationValue);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(WaveformPainter oldDelegate) {
+    return oldDelegate.waveformData != waveformData ||
+        oldDelegate.animationValue != animationValue;
+  }
+}
