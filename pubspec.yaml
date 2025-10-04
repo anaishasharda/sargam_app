@@ -35,18 +35,23 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   firebase_core:
+  cloud_firestore:
+  firebase_auth:
+  provider:
   audioplayers: 
   permission_handler: 
   record: 
   flutter_tts:
   # Audio analysis dependencies
-  # fft: ^2.0.0
-  # math: ^3.0.3
-  # collection: ^1.18.0
-  # For real-time audio processing
-  # audio_waveforms: ^1.0.5
-  # For audio file analysis
-  # audio_analysis: ^0.0.1 
+  fftea: ^1.5.0+1
+  flutter_pitch_detection: ^1.3.1
+  waveform_fft: ^0.0.3
+  # Additional math library for audio processing
+  collection: ^1.18.0
+  # For real-time audio capture and processing
+  flutter_audio_capture: ^1.0.0
+  # For charts and graphs
+  fl_chart: ^0.70.2 
 
 dev_dependencies:
   flutter_test:

@@ -31,6 +31,9 @@ class AudioService {
     // Initialize TTS service
     await _ttsService.initialize();
 
+    // Initialize enhanced audio analysis service
+    await _analysisService.initialize();
+
     return microphoneStatus.isGranted && storageStatus.isGranted;
   }
 

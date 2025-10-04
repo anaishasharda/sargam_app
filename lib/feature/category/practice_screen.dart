@@ -1,11 +1,15 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sargam_app/services/audio_service.dart';
 import 'package:sargam_app/services/audio_analysis_service.dart';
+import 'package:sargam_app/services/app_state_service.dart';
 
 import '../../models/audio_feedback.dart';
 import '../../models/audio_characteristics.dart';
 import '../../models/raag_entry.dart';
+import '../../models/practice_session.dart';
+import '../../models/journal_entry.dart';
 import 'real_time_audio_analysis.dart';
 import 'audio_characteristics_display.dart';
 
@@ -36,6 +40,8 @@ class _PracticeScreenState extends State<PracticeScreen>
   AudioCharacteristics? _userCharacteristics;
   bool _showRealTimeAnalysis = false;
   bool _showCharacteristicsDisplay = false;
+  DateTime? _practiceStartTime;
+  int _practiceTimeMinutes = 0;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -651,6 +657,14 @@ class _PracticeScreenState extends State<PracticeScreen>
     if (_audioService.isRecording) {
       final recordingPath = await _audioService.stopRecording();
       _pulseController.stop();
+
+      // Stop practice time tracking
+      if (_practiceStartTime != null) {
+        _practiceTimeMinutes = DateTime.now()
+            .difference(_practiceStartTime!)
+            .inMinutes;
+      }
+
       setState(() {});
 
       if (recordingPath != null) {
@@ -668,6 +682,10 @@ class _PracticeScreenState extends State<PracticeScreen>
     } else {
       await _audioService.startRecording();
       _pulseController.repeat(reverse: true);
+
+      // Start practice time tracking
+      _practiceStartTime = DateTime.now();
+
       setState(() {});
     }
   }
@@ -799,16 +817,170 @@ class _PracticeScreenState extends State<PracticeScreen>
     );
   }
 
-  void _logPractice() {
-    // TODO: Implement practice logging logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Practice session logged for ${widget.ragaData.name}'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  void _logPractice() async {
+    final appState = context.read<AppStateService>();
+    final currentUser = appState.currentUser;
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please sign in to log practice sessions'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Show practice logging dialog
+    _showPracticeLogDialog(appState, currentUser.id!);
+  }
+
+  void _showPracticeLogDialog(AppStateService appState, String userId) {
+    final TextEditingController notesController = TextEditingController();
+    int practiceTime = _practiceTimeMinutes > 0
+        ? _practiceTimeMinutes
+        : 15; // Default 15 minutes
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Log Practice Session'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Raga: ${widget.ragaData.name}'),
+                Text('Type: ${widget.practiceType}'),
+                const SizedBox(height: 16),
+
+                // Practice time slider
+                Text('Practice Time: $practiceTime minutes'),
+                Slider(
+                  value: practiceTime.toDouble(),
+                  min: 5,
+                  max: 120,
+                  divisions: 23,
+                  onChanged: (value) {
+                    setState(() {
+                      practiceTime = value.round();
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Notes field
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Practice Notes (Optional)',
+                    hintText: 'How did the practice session go?',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => _savePracticeSession(
+                appState,
+                userId,
+                practiceTime,
+                notesController.text,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _savePracticeSession(
+    AppStateService appState,
+    String userId,
+    int practiceTime,
+    String notes,
+  ) async {
+    Navigator.of(context).pop(); // Close dialog
+
+    try {
+      // Create practice session
+      final practiceSession = PracticeSession(
+        userId: userId,
+        date: DateTime.now(),
+        raga: widget.ragaData.name,
+        type: widget.practiceType,
+        missedNotes:
+            _lastFeedback?.missedNotes
+                .map(
+                  (note) => MissedNote(
+                    note: note,
+                    count: 1,
+                    expectedPitch: 'Unknown',
+                    actualPitch: 'Unknown',
+                  ),
+                )
+                .toList() ??
+            [],
+        tempo: 80, // Default tempo
+        pitchAccuracy: _lastFeedback?.pitchAccuracy.round() ?? 75,
+        practiceTime: practiceTime,
+        overallAccuracy: _lastFeedback?.overallAccuracy,
+        tempoAccuracy: _lastFeedback?.tempoAccuracy,
+        rhythmAccuracy: _lastFeedback?.rhythmAccuracy,
+      );
+
+      await appState.addPracticeSession(practiceSession);
+
+      // Create journal entry if notes provided
+      if (notes.isNotEmpty) {
+        final journalEntry = JournalEntry(
+          userId: userId,
+          date: DateTime.now(),
+          raga: widget.ragaData.name,
+          sur: 'Mixed', // Default value
+          taal: 'Free', // Default value
+          type: widget.practiceType,
+          notes: notes,
+          pitchAccuracy: _lastFeedback?.pitchAccuracy.round() ?? 75,
+          practiceTime: practiceTime,
+        );
+
+        await appState.addJournalEntry(journalEntry);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Practice session logged for ${widget.ragaData.name}'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to log practice session: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
   }
 
   Color _getAccuracyColor(int accuracy) {

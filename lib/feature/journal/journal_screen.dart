@@ -35,6 +35,7 @@ class _JournalScreenState extends State<JournalScreen>
   void _initializeSampleData() {
     _journalEntries.addAll([
       JournalEntry(
+        userId: 'sample_user',
         date: DateTime.now().subtract(const Duration(days: 1)),
         raga: 'Raag Yaman',
         sur: 'Shuddh Swars',
@@ -45,6 +46,7 @@ class _JournalScreenState extends State<JournalScreen>
         practiceTime: 45,
       ),
       JournalEntry(
+        userId: 'sample_user',
         date: DateTime.now().subtract(const Duration(days: 2)),
         raga: 'Raag Bhairav',
         sur: 'Komal Swars',
@@ -55,6 +57,7 @@ class _JournalScreenState extends State<JournalScreen>
         practiceTime: 30,
       ),
       JournalEntry(
+        userId: 'sample_user',
         date: DateTime.now().subtract(const Duration(days: 3)),
         raga: 'Raag Bhoopali',
         sur: 'Shuddh Swars',

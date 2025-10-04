@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/practice_goal.dart';
+import '../../services/firebase_service.dart';
 
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
@@ -10,41 +12,32 @@ class GoalsScreen extends StatefulWidget {
 }
 
 class _GoalsScreenState extends State<GoalsScreen> {
-  final List<PracticeGoal> _practiceGoals = [];
+  final FirebaseService _firebaseService = FirebaseService();
+  List<PracticeGoal> _practiceGoals = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _initializeSampleGoals();
+    _loadGoals();
   }
 
-  void _initializeSampleGoals() {
-    _practiceGoals.addAll([
-      PracticeGoal(
-        title: 'Practice Yaman for 7 days',
-        description: 'Daily practice of Raag Yaman to improve consistency',
-        targetDays: 7,
-        completedDays: 3,
-        raga: 'Raag Yaman',
-        deadline: DateTime.now().add(const Duration(days: 4)),
-      ),
-      PracticeGoal(
-        title: 'Improve pitch control this week',
-        description: 'Focus on hitting the right notes consistently',
-        targetDays: 7,
-        completedDays: 5,
-        raga: 'General',
-        deadline: DateTime.now().add(const Duration(days: 2)),
-      ),
-      PracticeGoal(
-        title: 'Master Raag Bhairav',
-        description: 'Complete all practice modes for Raag Bhairav',
-        targetDays: 14,
-        completedDays: 8,
-        raga: 'Raag Bhairav',
-        deadline: DateTime.now().add(const Duration(days: 6)),
-      ),
-    ]);
+  Future<void> _loadGoals() async {
+    setState(() => _isLoading = true);
+    try {
+      // final userId = FirebaseAuth.instance.currentUser?.uid;
+      // if (userId != null) {
+      final goals = await _firebaseService.getPracticeGoals('');
+      print('Goals: $goals');
+      setState(() {
+        _practiceGoals = goals;
+        _isLoading = false;
+      });
+      // }
+    } catch (e) {
+      print('Error loading goals: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -141,7 +134,13 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
         // Goals list
         Expanded(
-          child: _practiceGoals.isEmpty
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : _practiceGoals.isEmpty
               ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -286,10 +285,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     ),
                     onPressed: () => _updateGoalProgress(goal),
                     icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Mark Complete'),
+                    label: const Text('Mark Day'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
@@ -304,6 +303,18 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     label: const Text('Edit'),
                   ),
                 ),
+                const SizedBox(width: 8),
+                IconButton(
+                  style: IconButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: BorderSide(color: Colors.red.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => _deleteGoal(goal),
+                  icon: const Icon(Icons.delete, size: 20),
+                ),
               ],
             ),
           ],
@@ -313,30 +324,436 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   void _showAddGoalDialog(BuildContext context) {
-    // TODO: Implement add goal dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Add goal feature coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
+    _showGoalDialog(context);
+  }
+
+  void _showGoalDialog(BuildContext context, {PracticeGoal? existingGoal}) {
+    final titleController = TextEditingController(text: existingGoal?.title);
+    final descriptionController = TextEditingController(
+      text: existingGoal?.description,
+    );
+    final ragaController = TextEditingController(text: existingGoal?.raga);
+    final targetDaysController = TextEditingController(
+      text: existingGoal?.targetDays.toString() ?? '7',
+    );
+    DateTime selectedDeadline =
+        existingGoal?.deadline ?? DateTime.now().add(const Duration(days: 7));
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.grey[900],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Text(
+                existingGoal == null ? 'Add New Goal' : 'Edit Goal',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Goal Title',
+                        labelStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        hintText: 'e.g., Practice Yaman for 7 days',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: Colors.deepPurpleAccent,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: descriptionController,
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Description',
+                        labelStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        hintText: 'Describe your practice goal...',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: Colors.deepPurpleAccent,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: ragaController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Raga/Category',
+                        labelStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        hintText: 'e.g., Raag Yaman or General',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: Colors.deepPurpleAccent,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: targetDaysController,
+                      style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Target Days',
+                        labelStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        hintText: 'Number of days to practice',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                            color: Colors.deepPurpleAccent,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Deadline',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${selectedDeadline.day}/${selectedDeadline.month}/${selectedDeadline.year}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurpleAccent,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDeadline,
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
+                                ),
+                              );
+                              if (picked != null) {
+                                setDialogState(() {
+                                  selectedDeadline = picked;
+                                });
+                              }
+                            },
+                            icon: const Icon(Icons.calendar_today, size: 16),
+                            label: const Text('Select'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurpleAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    _saveGoal(
+                      context: dialogContext,
+                      existingGoal: existingGoal,
+                      title: titleController.text,
+                      description: descriptionController.text,
+                      raga: ragaController.text,
+                      targetDays: int.tryParse(targetDaysController.text) ?? 7,
+                      deadline: selectedDeadline,
+                    );
+                  },
+                  child: Text(
+                    existingGoal == null ? 'Add Goal' : 'Save Changes',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
-  void _updateGoalProgress(PracticeGoal goal) {
-    setState(() {
-      if (goal.completedDays < goal.targetDays) {
-        goal.completedDays++;
+  Future<void> _saveGoal({
+    required BuildContext context,
+    PracticeGoal? existingGoal,
+    required String title,
+    required String description,
+    required String raga,
+    required int targetDays,
+    required DateTime deadline,
+  }) async {
+    if (title.isEmpty || description.isEmpty || raga.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // final userId = FirebaseAuth.instance.currentUser?.uid;
+      // if (userId == null) {
+      //   throw Exception('User not authenticated');
+      // }
+
+      if (existingGoal != null) {
+        // Update existing goal
+        final updatedGoal = existingGoal.copyWith(
+          title: title,
+          description: description,
+          raga: raga,
+          targetDays: targetDays,
+          deadline: deadline,
+        );
+        await _firebaseService.updatePracticeGoal(updatedGoal);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Goal updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        // Create new goal
+        final newGoal = PracticeGoal(
+          userId: '',
+          title: title,
+          description: description,
+          raga: raga,
+          targetDays: targetDays,
+          completedDays: 0,
+          deadline: deadline,
+        );
+        await _firebaseService.addPracticeGoal(newGoal);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Goal added successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
-    });
+
+      Navigator.of(context).pop();
+      _loadGoals(); // Reload goals
+    } catch (e) {
+      print('Error saving goal: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving goal: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _updateGoalProgress(PracticeGoal goal) async {
+    if (goal.completedDays >= goal.targetDays) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Goal already completed!'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final updatedGoal = goal.copyWith(
+        completedDays: goal.completedDays + 1,
+        isCompleted: (goal.completedDays + 1) >= goal.targetDays,
+      );
+      await _firebaseService.updatePracticeGoal(updatedGoal);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            updatedGoal.isCompleted
+                ? '🎉 Goal completed!'
+                : 'Progress updated! ${updatedGoal.completedDays}/${updatedGoal.targetDays} days',
+          ),
+          backgroundColor: updatedGoal.isCompleted ? Colors.green : Colors.blue,
+        ),
+      );
+
+      _loadGoals(); // Reload goals
+    } catch (e) {
+      print('Error updating goal progress: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating progress: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _editGoal(PracticeGoal goal) {
-    // TODO: Implement goal editing
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Goal editing coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
+    _showGoalDialog(context, existingGoal: goal);
+  }
+
+  Future<void> _deleteGoal(PracticeGoal goal) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Delete Goal?',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            'Are you sure you want to delete "${goal.title}"? This action cannot be undone.',
+            style: TextStyle(color: Colors.white.withOpacity(0.8)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
+
+    if (confirmed == true) {
+      try {
+        await _firebaseService.deletePracticeGoal(goal.id!);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Goal deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        _loadGoals(); // Reload goals
+      } catch (e) {
+        print('Error deleting goal: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting goal: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
