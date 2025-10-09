@@ -25,15 +25,16 @@ class _GoalsScreenState extends State<GoalsScreen> {
   Future<void> _loadGoals() async {
     setState(() => _isLoading = true);
     try {
-      // final userId = FirebaseAuth.instance.currentUser?.uid;
-      // if (userId != null) {
-      final goals = await _firebaseService.getPracticeGoals('');
-      print('Goals: $goals');
-      setState(() {
-        _practiceGoals = goals;
-        _isLoading = false;
-      });
-      // }
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        final goals = await _firebaseService.getPracticeGoals(userId);
+        setState(() {
+          _practiceGoals = goals;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
       print('Error loading goals: $e');
       setState(() => _isLoading = false);
@@ -591,10 +592,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
     }
 
     try {
-      // final userId = FirebaseAuth.instance.currentUser?.uid;
-      // if (userId == null) {
-      //   throw Exception('User not authenticated');
-      // }
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
 
       if (existingGoal != null) {
         // Update existing goal
@@ -616,7 +617,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
       } else {
         // Create new goal
         final newGoal = PracticeGoal(
-          userId: '',
+          userId: userId,
           title: title,
           description: description,
           raga: raga,

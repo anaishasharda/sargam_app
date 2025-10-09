@@ -52,4 +52,30 @@ class JournalEntry {
       practiceTime: data['practiceTime'] ?? 0,
     );
   }
+
+  JournalEntry copyWith({
+    String? id,
+    String? userId,
+    DateTime? date,
+    String? raga,
+    String? sur,
+    String? taal,
+    String? type,
+    String? notes,
+    int? pitchAccuracy,
+    int? practiceTime,
+  }) {
+    return JournalEntry(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      date: date ?? this.date,
+      raga: raga ?? this.raga,
+      sur: sur ?? this.sur,
+      taal: taal ?? this.taal,
+      type: type ?? this.type,
+      notes: notes ?? this.notes,
+      pitchAccuracy: pitchAccuracy ?? this.pitchAccuracy,
+      practiceTime: practiceTime ?? this.practiceTime,
+    );
+  }
 }

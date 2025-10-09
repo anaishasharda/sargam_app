@@ -1,4 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:sargam_app/feature/navigation/main_navigation.dart';
+import '../../services/app_state_service.dart';
 import 'signup.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -53,16 +57,77 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  void _handleLogin() async {
+  Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-
-      // Simulate login process
-      await Future.delayed(const Duration(seconds: 2));
-
       if (mounted) {
-        setState(() => _isLoading = false);
-        // Navigate to home screen or show success message
+        setState(() => _isLoading = true);
+      }
+
+      try {
+        // Sign in with Firebase
+        final credential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            );
+
+        if (mounted && credential.user != null) {
+          // Initialize app state with user data
+          await context.read<AppStateService>().initialize();
+
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
+              (route) => false,
+            );
+          }
+
+          // Navigation is handled by AppInitializer in main.dart
+          // No need to navigate manually
+        }
+      } on FirebaseAuthException catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+
+          String errorMessage = 'An error occurred';
+          if (e.code == 'user-not-found') {
+            errorMessage = 'No user found with this email';
+          } else if (e.code == 'wrong-password') {
+            errorMessage = 'Wrong password';
+          } else if (e.code == 'invalid-email') {
+            errorMessage = 'Invalid email address';
+          } else if (e.code == 'user-disabled') {
+            errorMessage = 'This account has been disabled';
+          } else {
+            errorMessage = e.message ?? 'Login failed';
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('An unexpected error occurred: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
       }
     }
   }
