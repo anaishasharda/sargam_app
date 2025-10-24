@@ -380,16 +380,20 @@ class _ProgressScreenState extends State<ProgressScreen> {
               color: Colors.red[700],
             ),
           ),
-          const Spacer(),
-          Text(
-            'Expected: ${note.expectedPitch}',
-            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Actual: ${note.actualPitch}',
-            style: TextStyle(fontSize: 11, color: Colors.red[600]),
-          ),
+          // const Spacer(),
+          // Column(
+          //   children: [
+          //     Text(
+          //       'Expected: ${note.expectedPitch}',
+          //       style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          //     ),
+          //     const SizedBox(width: 8),
+          //     Text(
+          //       'Actual: ${note.actualPitch}',
+          //       style: TextStyle(fontSize: 11, color: Colors.red[600]),
+          //     ),
+          //   ],
+          // ),
         ],
       ),
     );
