@@ -32,8 +32,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       level: 'Beginner',
       description: 'A pentatonic raga with a joyful and uplifting character',
       notes: ['Sa', 'Re', 'Ga', 'Pa', 'Dha'],
-      aarohAudioPath: 'assets/audio/Bhoopali_Aaroh.mp4',
-      avrohAudioPath: 'assets/audio/Bhoopali_Aaroh.mp4',
+      aarohAudioPath: 'assets/audio/raag_bhoopali_aaroh.mp4',
+      avrohAudioPath: 'assets/audio/raag_bhoopali_avroh.mp4',
       swarmalikaAudioPath: 'assets/audio/bhoopali_swarmalika.mp3',
     ),
     // Intermediate Ragas
@@ -42,8 +42,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       level: 'Intermediate',
       description: 'A morning raga with a serious and devotional mood',
       notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
-      aarohAudioPath: 'assets/audio/bhairav_aaroh.mp3',
-      avrohAudioPath: 'assets/audio/bhairav_avroh.mp3',
+      aarohAudioPath: 'assets/audio/raag_bhairav_aaroh.mp4',
+      avrohAudioPath: 'assets/audio/raag_bhairav_avroh.mp4',
       swarmalikaAudioPath: 'assets/audio/bhairav_swarmalika.mp3',
     ),
     RagaData(
