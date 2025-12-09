@@ -61,9 +61,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyD4LJ0fkY82W_9Z1c6u91sYG7-CEa2XQ_Q',
-    appId: '1:282690968313:android:775a122bff58904239e028',
+    appId: '1:282690968313:android:cfa0382fee2800aa39e028',
     messagingSenderId: '282690968313',
     projectId: 'sargam-50e82',
     storageBucket: 'sargam-50e82.firebasestorage.app',
   );
+
 }

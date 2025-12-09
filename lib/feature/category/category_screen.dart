@@ -18,15 +18,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
   static final List<RagaData> _ragaDatabase = [
     // Beginner Ragas
-    RagaData(
-      name: 'Raag Yaman',
-      level: 'Beginner',
-      description: 'A beautiful evening raga with a peaceful and romantic mood',
-      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
-      aarohAudioPath: 'assets/audio/Bhoopali_Aaroh.mp4',
-      avrohAudioPath: 'assets/audio/Bhoopali_Aaroh.mp4',
-      swarmalikaAudioPath: 'assets/audio/yaman_swarmalika.mp3',
-    ),
+    // RagaData(
+    //   name: 'Raag Yaman',
+    //   level: 'Beginner',
+    //   description: 'A beautiful evening raga with a peaceful and romantic mood',
+    //   notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
+    //   aarohAudioPath: 'assets/audio/Bhoopali_Aaroh.mp4',
+    //   avrohAudioPath: 'assets/audio/Bhoopali_Aaroh.mp4',
+    //   swarmalikaAudioPath: 'assets/audio/yaman_swarmalika.mp3',
+    // ),
     RagaData(
       name: 'Raag Bhoopali',
       level: 'Beginner',
@@ -46,15 +46,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       avrohAudioPath: 'assets/audio/raag_bhairav_avroh.mp4',
       swarmalikaAudioPath: 'assets/audio/bhairav_swarmalika.mp3',
     ),
-    RagaData(
-      name: 'Raag Des',
-      level: 'Intermediate',
-      description: 'A romantic raga with a sweet and melodious character',
-      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
-      aarohAudioPath: 'assets/audio/des_aaroh.mp3',
-      avrohAudioPath: 'assets/audio/des_avroh.mp3',
-      swarmalikaAudioPath: 'assets/audio/des_swarmalika.mp3',
-    ),
+    // RagaData(
+    //   name: 'Raag Des',
+    //   level: 'Intermediate',
+    //   description: 'A romantic raga with a sweet and melodious character',
+    //   notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
+    //   aarohAudioPath: 'assets/audio/des_aaroh.mp3',
+    //   avrohAudioPath: 'assets/audio/des_avroh.mp3',
+    //   swarmalikaAudioPath: 'assets/audio/des_swarmalika.mp3',
+    // ),
     // Advanced Ragas
     RagaData(
       name: 'Raag Bhairavi',
@@ -65,15 +65,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       avrohAudioPath: 'assets/audio/bhairavi_avroh.mp3',
       swarmalikaAudioPath: 'assets/audio/bhairavi_swarmalika.mp3',
     ),
-    RagaData(
-      name: 'Raag Durga',
-      level: 'Advanced',
-      description: 'A pentatonic raga with a powerful and majestic mood',
-      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha'],
-      aarohAudioPath: 'assets/audio/durga_aaroh.mp3',
-      avrohAudioPath: 'assets/audio/durga_avroh.mp3',
-      swarmalikaAudioPath: 'assets/audio/durga_swarmalika.mp3',
-    ),
+    // RagaData(
+    //   name: 'Raag Durga',
+    //   level: 'Advanced',
+    //   description: 'A pentatonic raga with a powerful and majestic mood',
+    //   notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha'],
+    //   aarohAudioPath: 'assets/audio/durga_aaroh.mp3',
+    //   avrohAudioPath: 'assets/audio/durga_avroh.mp3',
+    //   swarmalikaAudioPath: 'assets/audio/durga_swarmalika.mp3',
+    // ),
   ];
 
   @override
@@ -224,7 +224,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       child: Row(
         children: [
           Expanded(
-            child: _buildStatCard('6', 'Ragas', Icons.music_note, Colors.green),
+            child: _buildStatCard('3', 'Ragas', Icons.music_note, Colors.green),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -238,8 +238,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           const SizedBox(width: 12),
           Expanded(
             child: _buildStatCard(
-              '18',
-              'Practice Modes',
+              'Multiple',
+              'Practice',
               Icons.play_circle,
               Colors.orange,
             ),

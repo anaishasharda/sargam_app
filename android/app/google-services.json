@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:282690968313:android:775a122bff58904239e028",
+        "mobilesdk_app_id": "1:282690968313:android:cfa0382fee2800aa39e028",
         "android_client_info": {
-          "package_name": "com.example.sargam_app"
+          "package_name": "com.sargam.app"
         }
       },
       "oauth_client": [],

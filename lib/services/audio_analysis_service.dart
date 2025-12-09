@@ -62,16 +62,32 @@ class AudioAnalysisService {
         return cached;
       }
 
+      print('Analyzing audio file: $filePath');
+
       // Read and process audio file
       final audioData = await _readAudioFileEfficient(filePath);
+
+      if (audioData.isEmpty) {
+        print('Warning: No audio data extracted from $filePath');
+        _isAnalyzing = false;
+        return _getEmptyCharacteristics();
+      }
+
+      print('Audio data extracted: ${audioData.length} samples');
+
       final characteristics = await extractCharacteristicsEfficient(audioData);
 
       // Cache the result
       _analysisCache[filePath] = characteristics;
 
+      print(
+        'Analysis complete - Pitch: ${characteristics.pitch.toStringAsFixed(2)} Hz, Notes: ${characteristics.notes}',
+      );
+
       _isAnalyzing = false;
       return characteristics;
     } catch (e) {
+      print('Error analyzing audio file: $e');
       _isAnalyzing = false;
       throw Exception('Failed to analyze audio: $e');
     }
@@ -84,17 +100,30 @@ class AudioAnalysisService {
     List<String> expectedNotes,
   ) async {
     try {
+      print('\n=== Audio Comparison ===');
+      print(
+        'Reference - Pitch: ${reference.pitch.toStringAsFixed(2)} Hz, Notes: ${reference.notes}, Volume: ${reference.volume.toStringAsFixed(3)}',
+      );
+      print(
+        'User - Pitch: ${user.pitch.toStringAsFixed(2)} Hz, Notes: ${user.notes}, Volume: ${user.volume.toStringAsFixed(3)}',
+      );
+      print('Expected Notes: $expectedNotes');
+
       // Enhanced pitch accuracy using frequency domain analysis
       final pitchAccuracy = _calculateEnhancedPitchAccuracy(reference, user);
+      print('Pitch Accuracy: ${pitchAccuracy.toStringAsFixed(2)}%');
 
       // Enhanced tempo accuracy with beat tracking
       final tempoAccuracy = _calculateEnhancedTempoAccuracy(reference, user);
+      print('Tempo Accuracy: ${tempoAccuracy.toStringAsFixed(2)}%');
 
       // Enhanced rhythm accuracy using cross-correlation
       final rhythmAccuracy = _calculateEnhancedRhythmAccuracy(reference, user);
+      print('Rhythm Accuracy: ${rhythmAccuracy.toStringAsFixed(2)}%');
 
       // Spectral similarity for timbre matching
       final timbreAccuracy = _calculateTimbreAccuracy(reference, user);
+      print('Timbre Accuracy: ${timbreAccuracy.toStringAsFixed(2)}%');
 
       // Overall accuracy with weighted components
       final overallAccuracy = _calculateWeightedAccuracy(
@@ -103,6 +132,7 @@ class AudioAnalysisService {
         rhythmAccuracy,
         timbreAccuracy,
       );
+      print('Overall Accuracy: ${overallAccuracy.toStringAsFixed(2)}%');
 
       // Enhanced note detection and missed notes analysis
       final missedNotes = _findMissedNotesEnhanced(
@@ -110,6 +140,8 @@ class AudioAnalysisService {
         user,
         expectedNotes,
       );
+      print('Missed Notes: $missedNotes');
+      print('======================\n');
 
       // Generate contextual suggestions for Indian music
       final suggestions = _generateIndianMusicSuggestions(
@@ -139,6 +171,7 @@ class AudioAnalysisService {
         characteristics: user,
       );
     } catch (e) {
+      print('Error in compareAudio: $e');
       throw Exception('Failed to compare audio: $e');
     }
   }
@@ -326,8 +359,54 @@ class AudioAnalysisService {
       return _getEmptyCharacteristics();
     }
 
-    // Efficient pitch detection using the dedicated library
-    final pitch = await _calculatePitchEfficient(samples);
+    print('Extracting characteristics from ${samples.length} samples');
+
+    // Analyze multiple windows for better accuracy
+    final pitches = <double>[];
+    final volumes = <double>[];
+    final allNotes = <String>{};
+
+    // Process audio in overlapping windows
+    final hopSize = _windowSize ~/ 2; // 50% overlap
+    for (int i = 0; i < samples.length - _windowSize; i += hopSize) {
+      final window = samples.sublist(
+        i,
+        math.min(i + _windowSize, samples.length),
+      );
+
+      final windowPitch = await _calculatePitchEfficient(window);
+      final windowVolume = _calculateVolumeEfficient(window);
+
+      // Only count windows with significant audio
+      if (windowVolume > 0.01 && windowPitch > 0) {
+        pitches.add(windowPitch);
+        volumes.add(windowVolume);
+
+        // Detect notes in this window
+        final note = _frequencyToNote(windowPitch);
+        if (note.isNotEmpty) {
+          allNotes.add(note);
+        }
+      }
+    }
+
+    // Calculate average pitch (weighted by volume)
+    double avgPitch = 0.0;
+    if (pitches.isNotEmpty) {
+      double totalWeight = volumes.fold(0.0, (sum, v) => sum + v);
+      if (totalWeight > 0) {
+        for (int i = 0; i < pitches.length; i++) {
+          avgPitch += pitches[i] * volumes[i] / totalWeight;
+        }
+      } else {
+        avgPitch = pitches.reduce((a, b) => a + b) / pitches.length;
+      }
+    }
+
+    print(
+      'Detected average pitch: ${avgPitch.toStringAsFixed(2)} Hz from ${pitches.length} windows',
+    );
+    print('Detected notes: ${allNotes.toList()}');
 
     // Enhanced tempo calculation using onset detection
     final tempo = _calculateTempoEnhanced(samples);
@@ -335,19 +414,24 @@ class AudioAnalysisService {
     // Rhythm pattern using beat tracking
     final rhythm = _calculateRhythmEnhanced(samples);
 
-    // Note detection using pitch and harmonic analysis
-    final notes = _detectNotesEnhanced(samples, pitch);
+    // Use detected notes from windowed analysis
+    final notes = allNotes.toList();
 
-    // RMS volume calculation
+    // Overall RMS volume calculation
     final volume = _calculateVolumeEfficient(samples);
 
-    // FFT spectrum analysis
-    final spectrum = _calculateSpectrumFFT(samples);
+    // FFT spectrum analysis on representative window
+    final midPoint = samples.length ~/ 2;
+    final spectrumWindow = samples.sublist(
+      math.max(0, midPoint - _windowSize ~/ 2),
+      math.min(samples.length, midPoint + _windowSize ~/ 2),
+    );
+    final spectrum = _calculateSpectrumFFT(spectrumWindow);
 
     final duration = samples.length / _sampleRate;
 
     return AudioCharacteristics(
-      pitch: pitch,
+      pitch: avgPitch,
       tempo: tempo,
       rhythm: rhythm,
       notes: notes,
@@ -419,18 +503,31 @@ class AudioAnalysisService {
     if (samples.length < _windowSize) return 0.0;
 
     final window = samples.take(_windowSize).toList();
+
+    // Calculate RMS to check if there's enough signal
+    final rms = _calculateVolumeEfficient(window);
+    if (rms < 0.01) return 0.0; // Too quiet, no pitch
+
     final autocorr = _autocorrelation(window);
 
     double maxValue = 0.0;
     int peakIndex = 0;
 
     // Find the highest peak after the zero lag
-    for (int i = 20; i < autocorr.length ~/ 2; i++) {
+    // Pitch range: 80Hz (low voice) to 1000Hz (high voice)
+    // Corresponds to samples: sampleRate/1000 to sampleRate/80
+    final minLag = (_sampleRate / 1000).round(); // ~44 samples for 1000Hz
+    final maxLag = (_sampleRate / 80).round(); // ~551 samples for 80Hz
+
+    for (int i = minLag; i < math.min(maxLag, autocorr.length ~/ 2); i++) {
       if (autocorr[i] > maxValue) {
         maxValue = autocorr[i];
         peakIndex = i;
       }
     }
+
+    // Require minimum correlation strength
+    if (maxValue < 0.3) return 0.0;
 
     return peakIndex > 0 ? _sampleRate / peakIndex : 0.0;
   }
@@ -516,53 +613,6 @@ class AudioAnalysisService {
     return mostCommon > 0 ? 60.0 / mostCommon : 0.0;
   }
 
-  /// Enhanced note detection with harmonic analysis
-  List<String> _detectNotesEnhanced(
-    List<double> samples,
-    double fundamentalPitch,
-  ) {
-    final notes = <String>[];
-
-    if (fundamentalPitch <= 0) return notes;
-
-    // Add fundamental note
-    final fundamentalNote = _frequencyToNote(fundamentalPitch);
-    if (fundamentalNote.isNotEmpty) {
-      notes.add(fundamentalNote);
-    }
-
-    // Detect harmonics for richer note detection
-    final spectrum = _calculateSpectrumFFT(samples);
-    final harmonics = _detectHarmonics(spectrum, fundamentalPitch);
-
-    for (final harmonic in harmonics) {
-      final note = _frequencyToNote(harmonic);
-      if (note.isNotEmpty && !notes.contains(note)) {
-        notes.add(note);
-      }
-    }
-
-    return notes;
-  }
-
-  /// Detect harmonics in the spectrum
-  List<double> _detectHarmonics(List<double> spectrum, double fundamental) {
-    final harmonics = <double>[];
-    const maxHarmonics = 5;
-
-    for (int h = 2; h <= maxHarmonics; h++) {
-      final harmonicFreq = fundamental * h;
-      if (harmonicFreq > _sampleRate / 2) break;
-
-      final bin = (harmonicFreq * spectrum.length * 2 / _sampleRate).round();
-      if (bin < spectrum.length && spectrum[bin] > 0.01) {
-        harmonics.add(harmonicFreq);
-      }
-    }
-
-    return harmonics;
-  }
-
   /// Efficient volume calculation
   double _calculateVolumeEfficient(List<double> samples) {
     if (samples.isEmpty) return 0.0;
@@ -633,14 +683,22 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.pitch == 0 || user.pitch == 0) return 0.0;
+    if (reference.pitch == 0 || user.pitch == 0)
+      return 50.0; // Neutral score if no pitch detected
 
     // Calculate cents difference (more musical than frequency ratio)
     final centsError =
         1200 * (math.log(user.pitch / reference.pitch) / math.log(2));
-    final accuracy = math.max(0.0, 100.0 - centsError.abs() / 50.0 * 100.0);
 
-    return math.min(100.0, accuracy);
+    // For Indian music, allow more deviation (up to 50 cents is acceptable)
+    // Perfect pitch: 0 cents = 100%
+    // 25 cents off = 85%
+    // 50 cents off = 70%
+    // 100 cents (semitone) = 50%
+    // More than 200 cents = 0%
+    final accuracy = 100.0 - (centsError.abs() / 2.0);
+
+    return math.max(0.0, math.min(100.0, accuracy));
   }
 
   /// Enhanced tempo accuracy calculation
@@ -648,12 +706,26 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.tempo == 0 || user.tempo == 0) return 0.0;
+    if (reference.tempo == 0 || user.tempo == 0)
+      return 70.0; // Neutral score if tempo not detected
 
     final tempoRatio = user.tempo / reference.tempo;
-    final accuracy = 100.0 * (1.0 - (tempoRatio - 1.0).abs());
+    final tempoDeviation = (tempoRatio - 1.0).abs();
 
-    return math.max(0.0, math.min(100.0, accuracy));
+    // For Indian music, tempo can vary more naturally
+    // Within 10% = 100%
+    // Within 20% = 85%
+    // Within 30% = 70%
+    // More than 50% off = 50%
+    if (tempoDeviation <= 0.1) {
+      return 100.0;
+    } else if (tempoDeviation <= 0.2) {
+      return 100.0 - (tempoDeviation - 0.1) * 150.0;
+    } else if (tempoDeviation <= 0.5) {
+      return 85.0 - (tempoDeviation - 0.2) * 50.0;
+    } else {
+      return math.max(50.0, 70.0 - tempoDeviation * 40.0);
+    }
   }
 
   /// Enhanced rhythm accuracy using cross-correlation
@@ -661,10 +733,16 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.rhythm.isEmpty || user.rhythm.isEmpty) return 0.0;
+    if (reference.rhythm.isEmpty || user.rhythm.isEmpty)
+      return 75.0; // Neutral score if rhythm not detected
 
     final correlation = _crossCorrelation(reference.rhythm, user.rhythm);
-    return correlation * 100.0;
+
+    // Normalize correlation to 0-100 range with better scaling
+    // Correlation of 0.5 or higher is considered good for rhythm
+    final accuracy = math.min(100.0, (correlation + 0.5) * 100.0);
+
+    return math.max(50.0, accuracy); // Minimum 50% for attempting rhythm
   }
 
   /// Calculate timbre accuracy using spectral features
@@ -672,18 +750,29 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.spectrum.isEmpty || user.spectrum.isEmpty) return 0.0;
+    if (reference.spectrum.isEmpty || user.spectrum.isEmpty)
+      return 80.0; // Neutral score if spectrum not available
 
     // Calculate spectral centroid similarity
     final refCentroid = reference.spectralCentroid;
     final userCentroid = user.spectralCentroid;
 
-    if (refCentroid == 0 || userCentroid == 0) return 0.0;
+    if (refCentroid == 0 || userCentroid == 0) return 80.0;
 
     final centroidRatio = userCentroid / refCentroid;
-    final centroidAccuracy = 100.0 * (1.0 - (centroidRatio - 1.0).abs());
+    final centroidDeviation = (centroidRatio - 1.0).abs();
 
-    return math.max(0.0, math.min(100.0, centroidAccuracy));
+    // Timbre is less critical for Indian music practice
+    // Within 30% = 100%
+    // Within 50% = 80%
+    // More than 100% = 60%
+    if (centroidDeviation <= 0.3) {
+      return 100.0;
+    } else if (centroidDeviation <= 0.5) {
+      return 100.0 - (centroidDeviation - 0.3) * 100.0;
+    } else {
+      return math.max(60.0, 80.0 - centroidDeviation * 20.0);
+    }
   }
 
   /// Calculate weighted overall accuracy
@@ -740,55 +829,92 @@ class AudioAnalysisService {
   ) {
     final suggestions = <String>[];
 
-    if (pitchAccuracy < 70) {
+    // Pitch-related suggestions
+    if (pitchAccuracy < 60) {
       suggestions.add(
-        'Practice swara (note) accuracy. Use a tanpura for reference pitch.',
-      );
-      suggestions.add('Focus on melakartha scales to improve pitch precision.');
-    }
-
-    if (rhythmAccuracy < 70) {
-      suggestions.add(
-        'Practice with a tabla or metronome to improve taal (rhythm).',
+        'Practice swara (note) accuracy slowly. Use a tanpura or shruti box for reference.',
       );
       suggestions.add(
-        'Work on different taals like Teentaal, Ektaal, or Rupak.',
+        'Focus on sa-pa (tonic-fifth) interval to stabilize pitch.',
       );
-    }
-
-    if (tempoAccuracy < 70) {
+    } else if (pitchAccuracy < 75) {
       suggestions.add(
-        'Practice at slower laya (tempo) first, then gradually increase.',
+        'Good pitch awareness! Practice meend (glides) between notes for better control.',
       );
+    } else if (pitchAccuracy >= 90) {
       suggestions.add(
-        'Use a tabla machine or metronome for consistent tempo practice.',
+        'Excellent pitch accuracy! Your swara control is impressive.',
       );
     }
 
-    if (timbreAccuracy < 70) {
+    // Rhythm-related suggestions
+    if (rhythmAccuracy < 60) {
       suggestions.add(
-        'Focus on voice quality and breath control for better tone.',
+        'Practice with a tabla or metronome to improve taal (rhythm) consistency.',
       );
+      suggestions.add('Start with simple taals like Dadra or Kaharwa.');
+    } else if (rhythmAccuracy < 75) {
       suggestions.add(
-        'Practice alankar (vocal exercises) for tonal improvement.',
+        'Good rhythm sense! Try practicing with tabla accompaniment.',
+      );
+    } else if (rhythmAccuracy >= 90) {
+      suggestions.add(
+        'Excellent laya (tempo) control! Your rhythm is very steady.',
       );
     }
 
-    if (missedNotes.isNotEmpty) {
-      suggestions.add('Practice the missed swaras: ${missedNotes.join(', ')}');
+    // Tempo-related suggestions
+    if (tempoAccuracy < 60) {
       suggestions.add(
-        'Work on gamaka (ornamentation) for smoother note transitions.',
+        'Practice at slower laya (tempo) first, then gradually increase speed.',
+      );
+    } else if (tempoAccuracy >= 85) {
+      suggestions.add(
+        'Great tempo consistency! You maintained good laya throughout.',
+      );
+    }
+
+    // Note-specific suggestions
+    if (missedNotes.isNotEmpty && missedNotes.length <= 3) {
+      suggestions.add(
+        'Focus on these swaras: ${missedNotes.join(', ')}. Practice them individually first.',
+      );
+    } else if (missedNotes.length > 3) {
+      suggestions.add(
+        'Practice the complete aaroh-avroh slowly to strengthen all swaras.',
+      );
+    }
+
+    // Timbre suggestions (only if poor)
+    if (timbreAccuracy < 65) {
+      suggestions.add(
+        'Work on breath support and voice placement for better tone quality.',
+      );
+    }
+
+    // Overall encouragement
+    final overallScore = (pitchAccuracy + tempoAccuracy + rhythmAccuracy) / 3;
+    if (overallScore >= 85) {
+      suggestions.add(
+        'Outstanding performance! Try exploring alankars (embellishments) in this raga.',
+      );
+    } else if (overallScore >= 70) {
+      suggestions.add(
+        'Good progress! Regular daily practice will help improve consistency.',
+      );
+    } else if (overallScore >= 50) {
+      suggestions.add(
+        'Keep practicing! Focus on one aspect at a time - pitch, then rhythm, then tempo.',
       );
     }
 
     if (suggestions.isEmpty) {
       suggestions.add(
-        'Excellent! Continue practicing to maintain consistency.',
+        'Good effort! Continue practicing to improve your skills.',
       );
-      suggestions.add('Try exploring more complex ragas and taals.');
     }
 
-    return suggestions;
+    return suggestions.take(4).toList(); // Limit to 4 suggestions
   }
 
   /// Generate detailed feedback
@@ -801,25 +927,61 @@ class AudioAnalysisService {
   ) {
     final buffer = StringBuffer();
 
+    // Overall performance assessment
     if (overall >= 90) {
-      buffer.write('Outstanding performance! ');
+      buffer.write(
+        '🌟 Outstanding! Your performance shows excellent mastery. ',
+      );
     } else if (overall >= 80) {
-      buffer.write('Very good performance! ');
+      buffer.write('🎵 Very good! You\'re showing strong skills. ');
     } else if (overall >= 70) {
-      buffer.write('Good effort! ');
+      buffer.write('👍 Good effort! You\'re on the right track. ');
+    } else if (overall >= 60) {
+      buffer.write('📈 Making progress! Keep up the practice. ');
     } else {
-      buffer.write('Keep practicing! ');
+      buffer.write('🎯 Keep practicing! Every session helps you improve. ');
     }
 
-    // Add specific feedback
-    if (pitch < 70) buffer.write('Focus on pitch accuracy. ');
-    if (tempo < 70) buffer.write('Work on tempo consistency. ');
-    if (rhythm < 70) buffer.write('Practice rhythmic precision. ');
+    // Highlight strengths
+    final strengths = <String>[];
+    if (pitch >= 85) strengths.add('pitch control');
+    if (tempo >= 85) strengths.add('tempo consistency');
+    if (rhythm >= 85) strengths.add('rhythm accuracy');
 
-    if (missedNotes.isNotEmpty) {
+    if (strengths.isNotEmpty) {
       buffer.write(
-        'Review the missed notes: ${missedNotes.take(3).join(', ')}.',
+        'Your ${strengths.join(' and ')} ${strengths.length > 1 ? 'are' : 'is'} excellent. ',
       );
+    }
+
+    // Areas for improvement (be constructive)
+    final improvements = <String>[];
+    if (pitch < 70) improvements.add('swara accuracy');
+    if (tempo < 70) improvements.add('laya consistency');
+    if (rhythm < 70) improvements.add('taal precision');
+
+    if (improvements.isNotEmpty) {
+      buffer.write('Focus on improving ${improvements.join(' and ')}. ');
+    }
+
+    // Missed notes feedback
+    if (missedNotes.isNotEmpty) {
+      if (missedNotes.length <= 2) {
+        buffer.write('Practice these swaras: ${missedNotes.join(', ')}. ');
+      } else {
+        buffer.write(
+          'Review the complete note sequence, especially: ${missedNotes.take(3).join(', ')}. ',
+        );
+      }
+    }
+
+    // Encouraging close
+    if (overall >= 80) {
+      buffer.write('You\'re ready for more advanced exercises!');
+    } else if (overall >= 60) {
+      buffer.write('Regular practice will help you reach the next level.');
+    } else {
+      buffer.write('Take your time and practice each element separately.');
     }
 
     return buffer.toString();

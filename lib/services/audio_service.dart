@@ -150,18 +150,20 @@ class AudioService {
       if (await _audioRecorder.hasPermission()) {
         final directory = Directory.systemTemp;
         _currentRecordingPath =
-            '${directory.path}/practice_recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
+            '${directory.path}/practice_recording_${DateTime.now().millisecondsSinceEpoch}.wav';
 
         await _audioRecorder.start(
           const RecordConfig(
-            encoder: AudioEncoder.aacLc,
+            encoder: AudioEncoder.wav, // Use WAV for proper analysis
             bitRate: 128000,
             sampleRate: 44100,
+            numChannels: 1, // Mono for consistency with analysis
           ),
           path: _currentRecordingPath!,
         );
 
         _isRecording = true;
+        print('Recording started: $_currentRecordingPath');
       } else {
         throw Exception('Microphone permission not granted');
       }
@@ -203,6 +205,7 @@ class AudioService {
   AudioAnalysisService get analysisService => _analysisService;
 
   Future<void> dispose() async {
+    await _audioPlayer.stop();
     await _audioPlayer.dispose();
     await _audioRecorder.dispose();
     await _ttsService.dispose();

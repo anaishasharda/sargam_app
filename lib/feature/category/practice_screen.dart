@@ -42,6 +42,8 @@ class _PracticeScreenState extends State<PracticeScreen>
   bool _showCharacteristicsDisplay = false;
   DateTime? _practiceStartTime;
   int _practiceTimeMinutes = 0;
+  String? _recordedAudioPath;
+  bool _hasRecording = false;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -57,15 +59,18 @@ class _PracticeScreenState extends State<PracticeScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     _pulseController.repeat(reverse: true);
+    _analysisService.initialize();
     _requestPermissions();
     _loadReferenceAudio();
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
-    _audioService.dispose();
-    _analysisService.dispose();
+    if (mounted) {
+      _pulseController.dispose();
+      _audioService.dispose();
+      _analysisService.dispose();
+    }
     super.dispose();
   }
 
@@ -75,8 +80,15 @@ class _PracticeScreenState extends State<PracticeScreen>
 
   Future<void> _loadReferenceAudio() async {
     try {
-      // For now, we'll create a mock reference characteristics
-      // In a real implementation, you would analyze the actual reference audio file
+      print('Loading reference audio: ${widget.audioPath}');
+      // Analyze the actual reference audio file
+      _referenceCharacteristics = await _analysisService.analyzeAudioFile(
+        widget.audioPath,
+      );
+      print('Reference audio loaded successfully');
+    } catch (e) {
+      print('Error loading reference audio: $e');
+      // Create a fallback reference characteristics if analysis fails
       _referenceCharacteristics = AudioCharacteristics(
         pitch: 440.0, // A4 note
         tempo: 120.0, // 120 BPM
@@ -86,8 +98,6 @@ class _PracticeScreenState extends State<PracticeScreen>
         spectrum: List.generate(100, (i) => sin(i * 0.1 * 3.14159)),
         duration: 10.0,
       );
-    } catch (e) {
-      print('Error loading reference audio: $e');
     }
   }
 
@@ -242,62 +252,91 @@ class _PracticeScreenState extends State<PracticeScreen>
                       () => _toggleRecording(),
                     ),
                     _controlButton(
-                      'Analyze Audio',
+                      _hasRecording ? 'Analyze Audio' : 'Record First',
                       Icons.analytics,
-                      Colors.purple,
+                      _hasRecording ? Colors.purple : Colors.grey,
                       _isAnalyzing,
                       () => _analyzeAudio(),
+                      enabled: _hasRecording && !_isAnalyzing,
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 16),
 
-                // Analysis controls
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _controlButton(
-                      'Real-time Analysis',
-                      Icons.radio_button_checked,
-                      Colors.cyan,
-                      _showRealTimeAnalysis,
-                      () => _toggleRealTimeAnalysis(),
-                    ),
-                    _controlButton(
-                      'Show Characteristics',
-                      Icons.bar_chart,
-                      Colors.teal,
-                      _showCharacteristicsDisplay,
-                      () => _toggleCharacteristicsDisplay(),
-                    ),
-                  ],
-                ),
+                // // Analysis controls
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                //   children: [
+                //     _controlButton(
+                //       'Real-time Analysis',
+                //       Icons.radio_button_checked,
+                //       Colors.cyan,
+                //       _showRealTimeAnalysis,
+                //       () => _toggleRealTimeAnalysis(),
+                //     ),
+                //     _controlButton(
+                //       'Show Characteristics',
+                //       Icons.bar_chart,
+                //       Colors.teal,
+                //       _showCharacteristicsDisplay,
+                //       () => _toggleCharacteristicsDisplay(),
+                //     ),
+                //   ],
+                // ),
 
-                const SizedBox(height: 16),
+                // const SizedBox(height: 16),
 
-                // Debug controls
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _controlButton(
-                      'Test Audio File',
-                      Icons.audiotrack,
-                      Colors.indigo,
-                      false,
-                      () => _testAudioFile(),
-                    ),
-                    _controlButton(
-                      'Check File Exists',
-                      Icons.search,
-                      Colors.brown,
-                      false,
-                      () => _checkAudioFileExists(),
-                    ),
-                  ],
-                ),
-
+                // // Debug controls
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                //   children: [
+                //     _controlButton(
+                //       'Test Audio File',
+                //       Icons.audiotrack,
+                //       Colors.indigo,
+                //       false,
+                //       () => _testAudioFile(),
+                //     ),
+                //     _controlButton(
+                //       'Check File Exists',
+                //       Icons.search,
+                //       Colors.brown,
+                //       false,
+                //       () => _checkAudioFileExists(),
+                //     ),
+                //   ],
+                // ),
                 const SizedBox(height: 32),
+
+                // Recording ready indicator
+                if (_hasRecording && !_audioService.isRecording)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green, width: 2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Recording Ready for Analysis',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Status indicator
                 if (_audioService.isRecording)
@@ -392,34 +431,43 @@ class _PracticeScreenState extends State<PracticeScreen>
     IconData icon,
     Color color,
     bool isActive,
-    VoidCallback onPressed,
-  ) {
+    VoidCallback onPressed, {
+    bool enabled = true,
+  }) {
+    final effectiveColor = enabled ? color : Colors.grey;
     return Column(
       children: [
         Container(
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: isActive ? color : color.withOpacity(0.1),
+            color: isActive ? effectiveColor : effectiveColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(40),
             border: Border.all(
-              color: isActive ? color : color.withOpacity(0.3),
+              color: isActive
+                  ? effectiveColor
+                  : effectiveColor.withOpacity(0.3),
               width: 2,
             ),
           ),
           child: IconButton(
-            icon: Icon(icon, color: isActive ? Colors.white : color, size: 32),
-            onPressed: onPressed,
+            icon: Icon(
+              icon,
+              color: isActive ? Colors.white : effectiveColor,
+              size: 32,
+            ),
+            onPressed: enabled ? onPressed : null,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           label,
           style: TextStyle(
-            color: Colors.white,
+            color: enabled ? Colors.white : Colors.white.withOpacity(0.5),
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -665,14 +713,23 @@ class _PracticeScreenState extends State<PracticeScreen>
             .inMinutes;
       }
 
-      setState(() {});
+      setState(() {
+        _recordedAudioPath = recordingPath;
+        _hasRecording = recordingPath != null;
+        // Clear previous analysis when new recording is made
+        _lastFeedback = null;
+        _userCharacteristics = null;
+      });
 
       if (recordingPath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Recording saved: ${recordingPath.split('/').last}'),
+            content: Text(
+              'Recording saved! You can now analyze it.\n${recordingPath.split('/').last}',
+            ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -680,6 +737,14 @@ class _PracticeScreenState extends State<PracticeScreen>
         );
       }
     } else {
+      // Clear previous recording when starting a new one
+      setState(() {
+        _recordedAudioPath = null;
+        _hasRecording = false;
+        _lastFeedback = null;
+        _userCharacteristics = null;
+      });
+
       await _audioService.startRecording();
       _pulseController.repeat(reverse: true);
 
@@ -691,36 +756,88 @@ class _PracticeScreenState extends State<PracticeScreen>
   }
 
   void _analyzeAudio() async {
+    // Check if user has recorded audio
+    if (!_hasRecording || _recordedAudioPath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please record your voice first before analyzing!'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isAnalyzing = true;
     });
 
     try {
-      // If we have user characteristics, compare with reference
-      if (_userCharacteristics != null && _referenceCharacteristics != null) {
-        final feedback = await _analysisService.compareAudio(
-          _referenceCharacteristics!,
-          _userCharacteristics!,
-          widget.ragaData.notes,
+      // Show analyzing message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Analyzing your recording...'),
+          backgroundColor: Colors.blue,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Analyze the reference audio if not already done
+      if (_referenceCharacteristics == null) {
+        print('Analyzing reference audio: ${widget.audioPath}');
+        _referenceCharacteristics = await _analysisService.analyzeAudioFile(
+          widget.audioPath,
         );
-        setState(() {
-          _isAnalyzing = false;
-          _lastFeedback = feedback;
-        });
-      } else {
-        // Generate sample feedback if no real data available
-        Future.delayed(const Duration(seconds: 3), () {
-          setState(() {
-            _isAnalyzing = false;
-            _lastFeedback = _generateSampleFeedback();
-          });
-        });
+        print('Reference analysis complete');
       }
+
+      // Analyze the user's recorded audio
+      print('Analyzing user recording: $_recordedAudioPath');
+      _userCharacteristics = await _analysisService.analyzeAudioFile(
+        _recordedAudioPath!,
+      );
+      print('User recording analysis complete');
+
+      // Compare both audio files
+      print('Comparing audio files...');
+      final feedback = await _analysisService.compareAudio(
+        _referenceCharacteristics!,
+        _userCharacteristics!,
+        widget.ragaData.notes,
+      );
+      print('Comparison complete');
+
+      setState(() {
+        _isAnalyzing = false;
+        _lastFeedback = feedback;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Analysis complete! Check your results below.'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       print('Error analyzing audio: $e');
       setState(() {
         _isAnalyzing = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error analyzing audio: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -794,27 +911,6 @@ class _PracticeScreenState extends State<PracticeScreen>
         ),
       );
     }
-  }
-
-  AudioFeedback _generateSampleFeedback() {
-    // Generate sample feedback based on practice type
-    final random = DateTime.now().millisecondsSinceEpoch % 100;
-
-    return AudioFeedback(
-      pitchAccuracy: 75.0 + (random % 20),
-      tempoAccuracy: 80.0 + (random % 15),
-      rhythmAccuracy: 70.0 + (random % 25),
-      overallAccuracy: 75.0 + (random % 20),
-      missedNotes: ['Sa', 'Re', 'Ga'].take(random % 3).toList(),
-      suggestions: [
-        'Try to hold each note for a longer duration',
-        'Focus on the transition between Sa and Re',
-        'Practice with a slower tempo first',
-        'Work on maintaining consistent rhythm patterns',
-      ],
-      overallFeedback:
-          'Good effort! Your pitch accuracy is improving. Focus on the missed notes and try to maintain consistent tempo and rhythm.',
-    );
   }
 
   void _logPractice() async {
