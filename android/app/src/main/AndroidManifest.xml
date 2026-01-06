@@ -14,7 +14,7 @@
 
     
     <application
-        android:label="Sargam"
+        android:label="Riti"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

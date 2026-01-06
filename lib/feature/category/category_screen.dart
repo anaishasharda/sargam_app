@@ -170,7 +170,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Welcome to Sargam',
+                      'Welcome to Riti',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,

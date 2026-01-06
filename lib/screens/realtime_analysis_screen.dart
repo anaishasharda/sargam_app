@@ -180,10 +180,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen>
             'Tempo: Beats per minute (BPM) from rhythm',
             'Quality: Overall audio clarity score',
             'Brightness: Spectral centroid (tonal brightness)',
-            'Notes: Detected musical notes (Western & Sargam)',
+            'Notes: Detected musical notes (Western & Riti)',
           ], Icons.analytics),
           _buildHelpSection('Indian Classical Music Features', [
-            'Sargam Notes: Western notes converted to Indian solfege',
+            'Riti Notes: Western notes converted to Indian solfege',
             'Raga Identification: Automatic raga detection',
             'Tempo Classification: Vilambit, Madhya, Drut, Ati Drut',
             'Practice Tips: Contextual suggestions for improvement',

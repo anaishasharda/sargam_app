@@ -404,7 +404,7 @@ class FirebaseService {
         if (existingProfile == null) {
           final newProfile = UserProfile(
             id: user.uid,
-            email: user.email ?? 'anonymous@sargam.app',
+            email: user.email ?? 'anonymous@riti.app',
             name: 'Anonymous User',
           );
           await createUserProfile(newProfile);

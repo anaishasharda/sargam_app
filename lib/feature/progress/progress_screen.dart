@@ -402,89 +402,105 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget _buildAccuracyImprovementChart(
     List<PracticeSession> practiceSessions,
   ) {
-    // Sort sessions by date for chronological order
-    final sortedSessions = List<PracticeSession>.from(practiceSessions)
-      ..sort((a, b) => a.date.compareTo(b.date));
+    final recentSessions = _recentSessions(practiceSessions);
 
-    if (sortedSessions.isEmpty) {
+    if (recentSessions.isEmpty) {
       return const Center(child: Text('No data available'));
     }
 
-    final dates = sortedSessions.map((s) => _formatDate(s.date)).toList();
-    final accuracies = sortedSessions
+    final dates = recentSessions.map((s) => _formatChartLabel(s.date)).toList();
+    final accuracies = recentSessions
         .map((s) => s.pitchAccuracy.toDouble())
         .toList();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: List.generate(sortedSessions.length, (index) {
+      children: List.generate(recentSessions.length, (index) {
         final height = (accuracies[index] / 100) * 150;
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Container(
-              width: 30,
-              height: height,
-              decoration: BoxDecoration(
-                color: Colors.deepPurpleAccent,
-                borderRadius: BorderRadius.circular(4),
-              ),
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: 18,
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurpleAccent,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  dates[index],
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  '${accuracies[index].toInt()}%',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              dates[index],
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
-            ),
-            Text(
-              '${accuracies[index].toInt()}%',
-              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-            ),
-          ],
+          ),
         );
       }),
     );
   }
 
   Widget _buildTempoChart(List<PracticeSession> practiceSessions) {
-    // Sort sessions by date for chronological order
-    final sortedSessions = List<PracticeSession>.from(practiceSessions)
-      ..sort((a, b) => a.date.compareTo(b.date));
+    final recentSessions = _recentSessions(practiceSessions);
 
-    if (sortedSessions.isEmpty) {
+    if (recentSessions.isEmpty) {
       return const Center(child: Text('No data available'));
     }
 
-    final dates = sortedSessions.map((s) => _formatDate(s.date)).toList();
-    final tempos = sortedSessions.map((s) => s.tempo.toDouble()).toList();
+    final dates = recentSessions.map((s) => _formatChartLabel(s.date)).toList();
+    final tempos = recentSessions.map((s) => s.tempo.toDouble()).toList();
     final maxTempo = tempos.reduce((a, b) => a > b ? a : b);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: List.generate(sortedSessions.length, (index) {
+      children: List.generate(recentSessions.length, (index) {
         final height = (tempos[index] / maxTempo) * 150;
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Container(
-              width: 30,
-              height: height,
-              decoration: BoxDecoration(
-                color: Colors.green,
-                borderRadius: BorderRadius.circular(4),
-              ),
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: 18,
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  dates[index],
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  '${tempos[index].toInt()}',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              dates[index],
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
-            ),
-            Text(
-              '${tempos[index].toInt()}',
-              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-            ),
-          ],
+          ),
         );
       }),
     );
@@ -592,6 +608,31 @@ class _ProgressScreenState extends State<ProgressScreen> {
     if (difference < 7) return '$difference days ago';
 
     return '${date.day}/${date.month}';
+  }
+
+  String _formatChartLabel(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date).inDays;
+
+    if (difference == 0) return 'Tdy';
+    if (difference == 1) return 'Yst';
+    if (difference < 7) return '${difference}d';
+
+    return '${date.day}/${date.month}';
+  }
+
+  List<PracticeSession> _recentSessions(
+    List<PracticeSession> practiceSessions, {
+    int maxItems = 7,
+  }) {
+    final sortedSessions = List<PracticeSession>.from(practiceSessions)
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    if (sortedSessions.length <= maxItems) {
+      return sortedSessions;
+    }
+
+    return sortedSessions.sublist(sortedSessions.length - maxItems);
   }
 
   Color _getAccuracyColor(int accuracy) {
