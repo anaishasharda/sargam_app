@@ -43,15 +43,15 @@ dependencies:
   record: 
   flutter_tts:
   # Audio analysis dependencies
-  fftea: ^1.5.0+1
-  flutter_pitch_detection: ^1.3.1
-  waveform_fft: ^0.0.3
+  fftea: 
+  flutter_pitch_detection:
+  waveform_fft: 
   # Additional math library for audio processing
-  collection: ^1.18.0
+  collection: 
   # For real-time audio capture and processing
-  flutter_audio_capture: ^1.0.0
+  flutter_audio_capture: 
   # For charts and graphs
-  fl_chart: ^0.70.2 
+  fl_chart: 
 
 dev_dependencies:
   flutter_test:
