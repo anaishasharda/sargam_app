@@ -36,5 +36,7 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app uses the microphone to capture and analyze your singing and practice sessions.</string>
 </dict>
 </plist>
