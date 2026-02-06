@@ -425,4 +425,52 @@ class FirebaseService {
       print('Error signing out: $e');
     }
   }
+
+  Future<void> deleteAccountAndData() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found.');
+    }
+
+    final userId = user.uid;
+    try {
+      await _deleteUserCollectionData(_practiceSessionsCollection, userId);
+      await _deleteUserCollectionData(_journalEntriesCollection, userId);
+      await _deleteUserCollectionData(_practiceGoalsCollection, userId);
+      await _usersCollection.doc(userId).delete();
+
+      await user.delete();
+    } catch (e) {
+      print('Error deleting account data: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _deleteUserCollectionData(
+    CollectionReference collection,
+    String userId,
+  ) async {
+    const batchSize = 450;
+
+    while (true) {
+      final snapshot = await collection
+          .where('userId', isEqualTo: userId)
+          .limit(batchSize)
+          .get();
+      if (snapshot.docs.isEmpty) {
+        break;
+      }
+
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+
+      if (snapshot.docs.length < batchSize) {
+        break;
+      }
+    }
+  }
 }

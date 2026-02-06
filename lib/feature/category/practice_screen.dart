@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sargam_app/services/audio_service.dart';
@@ -79,26 +79,22 @@ class _PracticeScreenState extends State<PracticeScreen>
   }
 
   Future<void> _loadReferenceAudio() async {
-    try {
-      print('Loading reference audio: ${widget.audioPath}');
-      // Analyze the actual reference audio file
-      _referenceCharacteristics = await _analysisService.analyzeAudioFile(
-        widget.audioPath,
-      );
-      print('Reference audio loaded successfully');
-    } catch (e) {
-      print('Error loading reference audio: $e');
-      // Create a fallback reference characteristics if analysis fails
-      _referenceCharacteristics = AudioCharacteristics(
-        pitch: 440.0, // A4 note
-        tempo: 120.0, // 120 BPM
-        rhythm: [0.5, 0.5, 0.5, 0.5], // Simple rhythm pattern
-        notes: widget.ragaData.notes,
-        volume: 0.8,
-        spectrum: List.generate(100, (i) => sin(i * 0.1 * 3.14159)),
-        duration: 10.0,
-      );
-    }
+    // Use the raga's defined notes as reference characteristics
+    // Asset audio files cannot be read directly as File paths for analysis
+    // The raga's notes provide the expected notes for comparison
+    print(
+      'Setting up reference characteristics from raga notes: ${widget.ragaData.notes}',
+    );
+    _referenceCharacteristics = AudioCharacteristics(
+      pitch: 261.63, // Middle C (Sa) as reference pitch
+      tempo: 60.0, // Default tempo
+      rhythm: const [],
+      notes: widget.ragaData.notes, // Use the defined raga notes
+      volume: 0.5,
+      spectrum: const [],
+      duration: 0.0,
+    );
+    print('Reference characteristics set successfully');
   }
 
   void _onRealTimeUpdate(AudioCharacteristics characteristics) {
@@ -226,14 +222,14 @@ class _PracticeScreenState extends State<PracticeScreen>
                       Icons.play_arrow,
                       Colors.green,
                       _audioService.isPlaying,
-                      () => _toggleAudio(),
+                      () => _playReferenceAudio(),
                     ),
                     _controlButton(
                       'Stop',
                       Icons.stop,
                       Colors.red,
                       false,
-                      () => _stopAudio(),
+                      () => _stopReferenceAudio(),
                     ),
                   ],
                 ),
@@ -657,50 +653,6 @@ class _PracticeScreenState extends State<PracticeScreen>
     );
   }
 
-  void _toggleAudio() async {
-    if (_audioService.isPlaying) {
-      await _audioService.stopAudio();
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Audio stopped'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-          ),
-        ),
-      );
-    } else {
-      // Use the audio path as provided
-      await _audioService.playAudio(
-        widget.audioPath,
-        ragaName: widget.ragaData.name,
-        practiceType: widget.practiceType,
-      );
-      setState(() {});
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Playing ${widget.practiceType} for ${widget.ragaData.name}\n(Audio file: ${widget.audioPath})',
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-          ),
-        ),
-      );
-    }
-  }
-
-  void _stopAudio() async {
-    await _audioService.stopAudio();
-    setState(() {});
-  }
-
   void _toggleRecording() async {
     if (_audioService.isRecording) {
       final recordingPath = await _audioService.stopRecording();
@@ -796,12 +748,32 @@ class _PracticeScreenState extends State<PracticeScreen>
         print('Reference analysis complete');
       }
 
+      // Verify the recording file exists before analysis
+      final recordingFile = File(_recordedAudioPath!);
+      if (!await recordingFile.exists()) {
+        throw Exception(
+          'Recording file not found. Please try recording again.',
+        );
+      }
+      final fileSize = await recordingFile.length();
+      print('Recording file size: $fileSize bytes');
+      if (fileSize < 1000) {
+        throw Exception(
+          'Recording file is too small. Please record for longer.',
+        );
+      }
+
       // Analyze the user's recorded audio
       print('Analyzing user recording: $_recordedAudioPath');
       _userCharacteristics = await _analysisService.analyzeAudioFile(
         _recordedAudioPath!,
       );
       print('User recording analysis complete');
+      if (_isEmptyCharacteristics(_userCharacteristics!)) {
+        throw Exception(
+          'We could not detect enough audio data. Please record again with a clearer voice.',
+        );
+      }
 
       // Compare both audio files
       print('Comparing audio files...');
@@ -815,6 +787,7 @@ class _PracticeScreenState extends State<PracticeScreen>
       setState(() {
         _isAnalyzing = false;
         _lastFeedback = feedback;
+        _showCharacteristicsDisplay = true;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1086,5 +1059,52 @@ class _PracticeScreenState extends State<PracticeScreen>
     if (accuracy >= 80) return Colors.blue;
     if (accuracy >= 70) return Colors.orange;
     return Colors.red;
+  }
+
+  bool _isEmptyCharacteristics(AudioCharacteristics characteristics) {
+    return characteristics.pitch == 0.0 &&
+        characteristics.tempo == 0.0 &&
+        characteristics.notes.isEmpty &&
+        characteristics.volume == 0.0 &&
+        characteristics.spectrum.isEmpty;
+  }
+
+  Future<void> _playReferenceAudio() async {
+    await _audioService.playAudio(
+      widget.audioPath,
+      ragaName: widget.ragaData.name,
+      practiceType: widget.practiceType,
+    );
+    setState(() {});
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Playing ${widget.practiceType} for ${widget.ragaData.name}',
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _stopReferenceAudio() async {
+    await _audioService.stopAudio();
+    setState(() {});
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Audio stopped'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10)),
+        ),
+      ),
+    );
   }
 }

@@ -339,13 +339,58 @@ class AudioAnalysisService {
   List<double> _convertBytesToSamplesEfficient(Uint8List bytes) {
     final samples = <double>[];
 
-    // Handle WAV format more efficiently
-    if (bytes.length < 44) return samples; // Invalid WAV header
+    // Handle WAV format
+    if (bytes.length < 44) {
+      print('WAV file too small: ${bytes.length} bytes');
+      return samples;
+    }
 
-    // Skip WAV header (44 bytes) and convert 16-bit samples
-    for (int i = 44; i < bytes.length - 1; i += 2) {
+    final header = String.fromCharCodes(bytes.take(4));
+    if (header != 'RIFF') {
+      print('Not a valid WAV file (no RIFF header)');
+      return samples;
+    }
+
+    // Find the 'data' chunk - WAV headers can be variable length
+    int dataStart = 12; // Start after 'RIFF' + size + 'WAVE'
+    while (dataStart < bytes.length - 8) {
+      final chunkId = String.fromCharCodes(
+        bytes.sublist(dataStart, dataStart + 4),
+      );
+      final chunkSize =
+          bytes[dataStart + 4] |
+          (bytes[dataStart + 5] << 8) |
+          (bytes[dataStart + 6] << 16) |
+          (bytes[dataStart + 7] << 24);
+
+      if (chunkId == 'data') {
+        dataStart += 8; // Skip 'data' + size
+        print('Found data chunk at offset $dataStart, size: $chunkSize bytes');
+        break;
+      }
+      dataStart += 8 + chunkSize;
+    }
+
+    if (dataStart >= bytes.length) {
+      print('Could not find data chunk in WAV file');
+      // Fallback to standard 44-byte header
+      dataStart = 44;
+    }
+
+    // Convert 16-bit samples
+    for (int i = dataStart; i < bytes.length - 1; i += 2) {
       final sample = (bytes[i] | (bytes[i + 1] << 8)).toSigned(16);
       samples.add(sample / 32768.0); // Normalize to [-1, 1]
+    }
+
+    print('Extracted ${samples.length} samples from WAV file');
+    if (samples.isNotEmpty) {
+      // Calculate some stats for debugging
+      double maxAbs = 0;
+      for (final s in samples) {
+        if (s.abs() > maxAbs) maxAbs = s.abs();
+      }
+      print('Max sample amplitude: $maxAbs');
     }
 
     return samples;
@@ -365,6 +410,8 @@ class AudioAnalysisService {
     final pitches = <double>[];
     final volumes = <double>[];
     final allNotes = <String>{};
+    int windowsProcessed = 0;
+    int windowsWithAudio = 0;
 
     // Process audio in overlapping windows
     final hopSize = _windowSize ~/ 2; // 50% overlap
@@ -373,12 +420,14 @@ class AudioAnalysisService {
         i,
         math.min(i + _windowSize, samples.length),
       );
+      windowsProcessed++;
 
       final windowPitch = await _calculatePitchEfficient(window);
       final windowVolume = _calculateVolumeEfficient(window);
 
-      // Only count windows with significant audio
-      if (windowVolume > 0.01 && windowPitch > 0) {
+      // Lower threshold for mobile recordings (0.005 instead of 0.01)
+      if (windowVolume > 0.005 && windowPitch > 0) {
+        windowsWithAudio++;
         pitches.add(windowPitch);
         volumes.add(windowVolume);
 
@@ -389,6 +438,10 @@ class AudioAnalysisService {
         }
       }
     }
+
+    print(
+      'Windows processed: $windowsProcessed, with audio: $windowsWithAudio',
+    );
 
     // Calculate average pitch (weighted by volume)
     double avgPitch = 0.0;
@@ -506,9 +559,15 @@ class AudioAnalysisService {
 
     // Calculate RMS to check if there's enough signal
     final rms = _calculateVolumeEfficient(window);
-    if (rms < 0.01) return 0.0; // Too quiet, no pitch
+    // Lower threshold for mobile recordings which may be quieter
+    if (rms < 0.005) {
+      return 0.0; // Too quiet, no pitch
+    }
 
     final autocorr = _autocorrelation(window);
+
+    // Normalize autocorrelation by the zero-lag value
+    final normalizer = autocorr[0] > 0 ? autocorr[0] : 1.0;
 
     double maxValue = 0.0;
     int peakIndex = 0;
@@ -520,16 +579,20 @@ class AudioAnalysisService {
     final maxLag = (_sampleRate / 80).round(); // ~551 samples for 80Hz
 
     for (int i = minLag; i < math.min(maxLag, autocorr.length ~/ 2); i++) {
-      if (autocorr[i] > maxValue) {
-        maxValue = autocorr[i];
+      final normalizedValue = autocorr[i] / normalizer;
+      if (normalizedValue > maxValue) {
+        maxValue = normalizedValue;
         peakIndex = i;
       }
     }
 
-    // Require minimum correlation strength
-    if (maxValue < 0.3) return 0.0;
+    // Lower threshold for pitch detection - 0.2 instead of 0.3
+    if (maxValue < 0.2) {
+      return 0.0;
+    }
 
-    return peakIndex > 0 ? _sampleRate / peakIndex : 0.0;
+    final detectedPitch = peakIndex > 0 ? _sampleRate / peakIndex : 0.0;
+    return detectedPitch;
   }
 
   /// Enhanced tempo calculation using onset detection
@@ -802,21 +865,44 @@ class AudioAnalysisService {
   ) {
     final missedNotes = <String>[];
 
+    // Normalize user's detected notes for comparison
+    // Since _frequencyToNote now returns Sargam notes directly,
+    // we just need to normalize for flat/sharp variations
+    final userNotesNormalized = user.notes.map(_normalizeSargamNote).toSet();
+
+    print('User detected notes (raw): ${user.notes}');
+    print('User detected notes (normalized): $userNotesNormalized');
+    print('Expected notes: $expectedNotes');
+
     // Check expected notes against user performance
     for (final expectedNote in expectedNotes) {
-      if (!user.notes.contains(expectedNote)) {
+      final normalizedExpected = _normalizeSargamNote(expectedNote);
+      if (!userNotesNormalized.contains(normalizedExpected)) {
         missedNotes.add(expectedNote);
       }
     }
 
-    // Also check reference notes
+    // Also check reference notes (already in Sargam format)
     for (final refNote in reference.notes) {
-      if (!user.notes.contains(refNote) && !missedNotes.contains(refNote)) {
+      final normalizedRef = _normalizeSargamNote(refNote);
+      if (!userNotesNormalized.contains(normalizedRef) &&
+          !missedNotes.any((m) => _normalizeSargamNote(m) == normalizedRef)) {
         missedNotes.add(refNote);
       }
     }
 
+    print('Missed notes: $missedNotes');
     return missedNotes;
+  }
+
+  /// Normalize Sargam note for comparison (remove flats/sharps)
+  String _normalizeSargamNote(String note) {
+    // Remove flat and sharp symbols for basic comparison
+    return note
+        .replaceAll('♭', '')
+        .replaceAll('♯', '')
+        .replaceAll('#', '')
+        .trim();
   }
 
   /// Generate suggestions specific to Indian music
@@ -1075,6 +1161,8 @@ class AudioAnalysisService {
     return correlation / minLength;
   }
 
+  /// Convert frequency to Sargam note (Indian classical music notation)
+  /// Uses C = Sa as the base (common in Indian classical music)
   String _frequencyToNote(double frequency) {
     if (frequency <= 0) return '';
 
@@ -1082,23 +1170,26 @@ class AudioAnalysisService {
     final n = 12 * math.log(frequency / a4) / math.log(2);
     final noteNumber = (n + 9).round() % 12;
 
-    const notes = [
-      'C',
-      'C#',
-      'D',
-      'D#',
-      'E',
-      'F',
-      'F#',
-      'G',
-      'G#',
-      'A',
-      'A#',
-      'B',
+    // Return Sargam notes directly instead of Western notes
+    // This matches the expected format in RagaData.notes
+    // Mapping: C=Sa, C#=Re♭, D=Re, D#=Ga♭, E=Ga, F=Ma, F#=Ma#, G=Pa, G#=Dha♭, A=Dha, A#=Ni♭, B=Ni
+    const sargamNotes = [
+      'Sa', // C
+      'Re', // C# (using Re instead of Re♭ for simpler matching)
+      'Re', // D
+      'Ga', // D# (using Ga instead of Ga♭ for simpler matching)
+      'Ga', // E
+      'Ma', // F
+      'Ma', // F# (using Ma instead of Ma# for simpler matching)
+      'Pa', // G
+      'Dha', // G# (using Dha instead of Dha♭ for simpler matching)
+      'Dha', // A
+      'Ni', // A# (using Ni instead of Ni♭ for simpler matching)
+      'Ni', // B
     ];
 
-    if (noteNumber >= 0 && noteNumber < notes.length) {
-      return notes[noteNumber];
+    if (noteNumber >= 0 && noteNumber < sargamNotes.length) {
+      return sargamNotes[noteNumber];
     }
 
     return '';

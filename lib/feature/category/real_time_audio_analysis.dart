@@ -82,8 +82,21 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
       _referenceCharacteristics = await _analysisService.analyzeAudioFile(
         widget.referenceAudioPath,
       );
+      if (_referenceCharacteristics != null &&
+          _isEmptyCharacteristics(_referenceCharacteristics!)) {
+        throw Exception('Reference audio analysis returned empty data.');
+      }
     } catch (e) {
       print('Error loading reference audio: $e');
+      _referenceCharacteristics = AudioCharacteristics(
+        pitch: 0.0,
+        tempo: 0.0,
+        rhythm: const [],
+        notes: widget.expectedNotes,
+        volume: 0.0,
+        spectrum: const [],
+        duration: 0.0,
+      );
     }
   }
 
@@ -470,6 +483,14 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
     if (value >= 80) return Colors.green;
     if (value >= 60) return Colors.orange;
     return Colors.red;
+  }
+
+  bool _isEmptyCharacteristics(AudioCharacteristics characteristics) {
+    return characteristics.pitch == 0.0 &&
+        characteristics.tempo == 0.0 &&
+        characteristics.notes.isEmpty &&
+        characteristics.volume == 0.0 &&
+        characteristics.spectrum.isEmpty;
   }
 }
 

@@ -303,4 +303,58 @@ class AppStateService extends ChangeNotifier {
     _clearError();
     notifyListeners();
   }
+
+  Future<void> deleteAccount() async {
+    _setLoading(true);
+    try {
+      await _firebaseService.deleteAccountAndData();
+      _currentUser = null;
+      _practiceSessions.clear();
+      _journalEntries.clear();
+      _practiceGoals.clear();
+      _userAnalytics.clear();
+      _clearError();
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to delete account: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> deleteAccountWithPassword(String password) async {
+    _setLoading(true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final email = user?.email;
+      if (user == null || email == null) {
+        _setError('No authenticated user found.');
+        return false;
+      }
+
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(credential);
+
+      await _firebaseService.deleteAccountAndData();
+      _currentUser = null;
+      _practiceSessions.clear();
+      _journalEntries.clear();
+      _practiceGoals.clear();
+      _userAnalytics.clear();
+      _clearError();
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _setError(e.message ?? 'Failed to reauthenticate user.');
+      return false;
+    } catch (e) {
+      _setError('Failed to delete account: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
 }

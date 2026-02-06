@@ -148,6 +148,8 @@ class AudioService {
   Future<void> startRecording() async {
     try {
       if (await _audioRecorder.hasPermission()) {
+        // Let the recorder decide the path - works more reliably across platforms
+        // The recorder will return the actual path when stopped
         final directory = Directory.systemTemp;
         _currentRecordingPath =
             '${directory.path}/practice_recording_${DateTime.now().millisecondsSinceEpoch}.wav';
@@ -175,9 +177,39 @@ class AudioService {
 
   Future<String?> stopRecording() async {
     try {
+      // Get the actual path from the recorder
       final path = await _audioRecorder.stop();
       _isRecording = false;
-      return path;
+
+      if (path == null) {
+        print('Recording stopped but no path returned');
+        return null;
+      }
+
+      print('Recording stopped, path: $path');
+
+      // Wait a moment for file to be fully written
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Verify the file exists
+      final file = File(path);
+      if (await file.exists()) {
+        final fileSize = await file.length();
+        print('Recording file verified: $path (size: $fileSize bytes)');
+        _currentRecordingPath = path;
+        return path;
+      } else {
+        print('Warning: Recording file not found at $path');
+        // Try the path we specified during start
+        if (_currentRecordingPath != null) {
+          final altFile = File(_currentRecordingPath!);
+          if (await altFile.exists()) {
+            print('Found recording at alternate path: $_currentRecordingPath');
+            return _currentRecordingPath;
+          }
+        }
+        return null;
+      }
     } catch (e) {
       print('Error stopping recording: $e');
       _isRecording = false;

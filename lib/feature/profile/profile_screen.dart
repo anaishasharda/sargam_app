@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/app_state_service.dart';
 import '../../models/user_profile.dart';
+import '../auth/login.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -390,6 +391,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Delete Account Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade800,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: () => _showDeleteAccountDialog(appState),
+                icon: const Icon(Icons.delete_forever),
+                label: const Text(
+                  'Delete Account',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           ],
         );
       },
@@ -576,5 +600,147 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  void _showDeleteAccountDialog(AppStateService appState) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return _DeleteAccountDialog(
+          appState: appState,
+          parentContext: context,
+        );
+      },
+    );
+  }
+}
+
+class _DeleteAccountDialog extends StatefulWidget {
+  final AppStateService appState;
+  final BuildContext parentContext;
+
+  const _DeleteAccountDialog({
+    required this.appState,
+    required this.parentContext,
+  });
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isDeleting = false;
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Delete Account'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'This will permanently delete your account and all practice data. This action cannot be undone.',
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            decoration: InputDecoration(
+              labelText: 'Confirm Password',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed:
+              _isDeleting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isDeleting ? null : _handleDelete,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red.shade800,
+            foregroundColor: Colors.white,
+          ),
+          child:
+              _isDeleting
+                  ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                  : const Text('Delete'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleDelete() async {
+    final password = _passwordController.text.trim();
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your password.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isDeleting = true;
+    });
+
+    final success = await widget.appState.deleteAccountWithPassword(password);
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+        const SnackBar(
+          content: Text('Account deleted successfully.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pushAndRemoveUntil(
+        widget.parentContext,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    } else {
+      final error = widget.appState.error;
+      setState(() {
+        _isDeleting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Failed to delete account.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

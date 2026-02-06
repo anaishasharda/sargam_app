@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../../models/audio_characteristics.dart';
 import '../../models/audio_feedback.dart';
+import '../../services/indian_music_helper.dart';
 
 class AudioCharacteristicsDisplay extends StatefulWidget {
   final AudioCharacteristics? referenceCharacteristics;
@@ -73,7 +74,10 @@ class _AudioCharacteristicsDisplayState
           _buildHeader(),
 
           // Tab content
-          Expanded(child: _buildTabContent()),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _buildTabContent(),
+          ),
         ],
       ),
     );
@@ -102,12 +106,12 @@ class _AudioCharacteristicsDisplayState
           const SizedBox(height: 16),
 
           // Tabs
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
             children: [
               _buildTab('Overview', 0),
-              const SizedBox(width: 16),
               _buildTab('Spectrum', 1),
-              const SizedBox(width: 16),
               _buildTab('Comparison', 2),
             ],
           ),
@@ -183,56 +187,57 @@ class _AudioCharacteristicsDisplayState
       child: Column(
         children: [
           // Main characteristics grid
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              children: [
-                _buildCharacteristicCard(
-                  'Pitch',
-                  '${characteristics.pitch.toStringAsFixed(1)} Hz',
-                  Icons.trending_up,
-                  Colors.blue,
-                  _getPitchDescription(characteristics.pitch),
-                ),
-                _buildCharacteristicCard(
-                  'Tempo',
-                  '${characteristics.tempo.toStringAsFixed(1)} BPM',
-                  Icons.speed,
-                  Colors.orange,
-                  _getTempoDescription(characteristics.tempo),
-                ),
-                _buildCharacteristicCard(
-                  'Volume',
-                  '${(characteristics.volume * 100).toStringAsFixed(1)}%',
-                  Icons.volume_up,
-                  Colors.green,
-                  _getVolumeDescription(characteristics.volume),
-                ),
-                _buildCharacteristicCard(
-                  'Duration',
-                  '${characteristics.duration.toStringAsFixed(1)}s',
-                  Icons.timer,
-                  Colors.purple,
-                  _getDurationDescription(characteristics.duration),
-                ),
-                _buildCharacteristicCard(
-                  'Quality',
-                  '${characteristics.qualityScore.toStringAsFixed(1)}%',
-                  Icons.star,
-                  _getQualityColor(characteristics.qualityScore),
-                  _getQualityDescription(characteristics.qualityScore),
-                ),
-                _buildCharacteristicCard(
-                  'Brightness',
-                  '${characteristics.spectralCentroid.toStringAsFixed(1)}',
-                  Icons.wb_sunny,
-                  Colors.amber,
-                  _getBrightnessDescription(characteristics.spectralCentroid),
-                ),
-              ],
-            ),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 1.05,
+            children: [
+              _buildCharacteristicCard(
+                'Pitch',
+                '${characteristics.pitch.toStringAsFixed(1)} Hz',
+                Icons.trending_up,
+                Colors.blue,
+                _getPitchDescription(characteristics.pitch),
+              ),
+              _buildCharacteristicCard(
+                'Tempo',
+                '${characteristics.tempo.toStringAsFixed(1)} BPM',
+                Icons.speed,
+                Colors.orange,
+                _getTempoDescription(characteristics.tempo),
+              ),
+              _buildCharacteristicCard(
+                'Volume',
+                '${(characteristics.volume * 100).toStringAsFixed(1)}%',
+                Icons.volume_up,
+                Colors.green,
+                _getVolumeDescription(characteristics.volume),
+              ),
+              _buildCharacteristicCard(
+                'Duration',
+                '${characteristics.duration.toStringAsFixed(1)}s',
+                Icons.timer,
+                Colors.purple,
+                _getDurationDescription(characteristics.duration),
+              ),
+              _buildCharacteristicCard(
+                'Quality',
+                '${characteristics.qualityScore.toStringAsFixed(1)}%',
+                Icons.star,
+                _getQualityColor(characteristics.qualityScore),
+                _getQualityDescription(characteristics.qualityScore),
+              ),
+              _buildCharacteristicCard(
+                'Brightness',
+                '${characteristics.spectralCentroid.toStringAsFixed(1)}',
+                Icons.wb_sunny,
+                Colors.amber,
+                _getBrightnessDescription(characteristics.spectralCentroid),
+              ),
+            ],
           ),
 
           // Notes section
@@ -263,7 +268,8 @@ class _AudioCharacteristicsDisplayState
       child: Column(
         children: [
           // Spectrum chart
-          Expanded(
+          SizedBox(
+            height: 180,
             child: AnimatedBuilder(
               animation: _chartAnimation,
               builder: (context, child) {
@@ -310,7 +316,7 @@ class _AudioCharacteristicsDisplayState
           ],
 
           // Comparison charts
-          Expanded(child: _buildComparisonCharts()),
+          _buildComparisonCharts(),
         ],
       ),
     );
@@ -406,7 +412,9 @@ class _AudioCharacteristicsDisplayState
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: notes.map((note) => _buildNoteChip(note)).toList(),
+            children: notes
+                .map((note) => _buildNoteChip(_formatNote(note)))
+                .toList(),
           ),
         ],
       ),
@@ -598,22 +606,18 @@ class _AudioCharacteristicsDisplayState
   Widget _buildComparisonCharts() {
     return Column(
       children: [
-        Expanded(
-          child: _buildComparisonChart(
-            'Pitch Comparison',
-            widget.referenceCharacteristics!.pitch,
-            widget.userCharacteristics!.pitch,
-            'Hz',
-          ),
+        _buildComparisonChart(
+          'Pitch Comparison',
+          widget.referenceCharacteristics!.pitch,
+          widget.userCharacteristics!.pitch,
+          'Hz',
         ),
         const SizedBox(height: 16),
-        Expanded(
-          child: _buildComparisonChart(
-            'Tempo Comparison',
-            widget.referenceCharacteristics!.tempo,
-            widget.userCharacteristics!.tempo,
-            'BPM',
-          ),
+        _buildComparisonChart(
+          'Tempo Comparison',
+          widget.referenceCharacteristics!.tempo,
+          widget.userCharacteristics!.tempo,
+          'BPM',
         ),
       ],
     );
@@ -644,10 +648,9 @@ class _AudioCharacteristicsDisplayState
               fontWeight: FontWeight.bold,
             ),
           ),
-
           const SizedBox(height: 16),
-
-          Expanded(
+          SizedBox(
+            height: 160,
             child: Row(
               children: [
                 Expanded(
@@ -689,33 +692,33 @@ class _AudioCharacteristicsDisplayState
           child: AnimatedBuilder(
             animation: _chartAnimation,
             builder: (context, child) {
-              return Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    height:
-                        (MediaQuery.of(context).size.height *
-                        0.2 *
-                        height *
-                        _chartAnimation.value),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final barHeight =
+                      constraints.maxHeight * height * _chartAnimation.value;
+                  return Container(
+                    width: double.infinity,
                     decoration: BoxDecoration(
-                      color: color,
+                      color: color.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                  ),
-                ),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: barHeight,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
         ),
-
         const SizedBox(height: 8),
-
         Text(
           '${value.toStringAsFixed(1)} $label',
           style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
@@ -784,6 +787,11 @@ class _AudioCharacteristicsDisplayState
     if (accuracy >= 70) return Colors.orange;
     return Colors.red;
   }
+
+  String _formatNote(String note) {
+    final sargam = IndianMusicHelper.westernToSargamNote(note);
+    return sargam;
+  }
 }
 
 class SpectrumPainter extends CustomPainter {
@@ -840,4 +848,3 @@ class SpectrumPainter extends CustomPainter {
         oldDelegate.animationValue != animationValue;
   }
 }
-
