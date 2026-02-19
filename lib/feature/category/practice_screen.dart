@@ -61,7 +61,6 @@ class _PracticeScreenState extends State<PracticeScreen>
     _pulseController.repeat(reverse: true);
     _analysisService.initialize();
     _requestPermissions();
-    _loadReferenceAudio();
   }
 
   @override
@@ -76,25 +75,6 @@ class _PracticeScreenState extends State<PracticeScreen>
 
   Future<void> _requestPermissions() async {
     await _audioService.requestPermissions();
-  }
-
-  Future<void> _loadReferenceAudio() async {
-    // Use the raga's defined notes as reference characteristics
-    // Asset audio files cannot be read directly as File paths for analysis
-    // The raga's notes provide the expected notes for comparison
-    print(
-      'Setting up reference characteristics from raga notes: ${widget.ragaData.notes}',
-    );
-    _referenceCharacteristics = AudioCharacteristics(
-      pitch: 261.63, // Middle C (Sa) as reference pitch
-      tempo: 60.0, // Default tempo
-      rhythm: const [],
-      notes: widget.ragaData.notes, // Use the defined raga notes
-      volume: 0.5,
-      spectrum: const [],
-      duration: 0.0,
-    );
-    print('Reference characteristics set successfully');
   }
 
   void _onRealTimeUpdate(AudioCharacteristics characteristics) {
@@ -742,10 +722,31 @@ class _PracticeScreenState extends State<PracticeScreen>
       // Analyze the reference audio if not already done
       if (_referenceCharacteristics == null) {
         print('Analyzing reference audio: ${widget.audioPath}');
-        _referenceCharacteristics = await _analysisService.analyzeAudioFile(
+
+        // Get the asset file as a temporary file for analysis
+        final referenceFile = await _audioService.getAssetFile(
           widget.audioPath,
         );
-        print('Reference analysis complete');
+
+        if (referenceFile != null && await referenceFile.exists()) {
+          _referenceCharacteristics = await _analysisService.analyzeAudioFile(
+            referenceFile.path,
+          );
+          print('Reference analysis complete');
+          print('Reference notes: ${_referenceCharacteristics?.notes}');
+        } else {
+          print('Failed to load reference audio file: ${widget.audioPath}');
+          // Fallback to raga notes if file analysis fails (better than nothing)
+          _referenceCharacteristics = AudioCharacteristics(
+            pitch: 261.63, // Fallback
+            tempo: 60.0,
+            rhythm: const [],
+            notes: widget.ragaData.notes,
+            volume: 0.5,
+            spectrum: const [],
+            duration: 0.0,
+          );
+        }
       }
 
       // Verify the recording file exists before analysis

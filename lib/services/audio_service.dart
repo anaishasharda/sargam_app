@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 import 'tts_audio_service.dart';
 import 'audio_analysis_service.dart';
 import '../models/audio_characteristics.dart';
@@ -74,9 +75,8 @@ class AudioService {
     String? practiceType,
   }) async {
     try {
-      if (_isPlaying) {
-        await stopAudio();
-      }
+      // Always stop before playing to reset state
+      await stopAudio();
 
       // Try to play actual audio file
       try {
@@ -87,7 +87,10 @@ class AudioService {
         }
 
         print('Attempting to play audio file: $assetPath');
-        print('Original path: $audioPath');
+
+        // Ensure the player is in a clean state
+        await _audioPlayer.setSource(AssetSource(assetPath));
+        await _audioPlayer.setVolume(1.0);
 
         // Set up completion handler
         _audioPlayer.onPlayerComplete.listen((event) {
@@ -95,7 +98,7 @@ class AudioService {
           _isPlaying = false;
         });
 
-        await _audioPlayer.play(AssetSource(assetPath));
+        await _audioPlayer.resume();
         _isPlaying = true;
         print('Successfully playing audio file: $assetPath');
         return;
@@ -107,6 +110,7 @@ class AudioService {
 
       // Fallback to TTS if audio file doesn't exist
       if (ragaName != null && practiceType != null) {
+        print('Falling back to TTS for $ragaName - $practiceType');
         _isPlaying = true;
 
         switch (practiceType.toLowerCase()) {
@@ -142,6 +146,27 @@ class AudioService {
       _isPlaying = false;
     } catch (e) {
       print('Error stopping audio: $e');
+    }
+  }
+
+  /// Get a temporary file for an asset audio
+  /// This is needed because AudioAnalysisService requires a File object
+  Future<File?> getAssetFile(String assetPath) async {
+    try {
+      final byteData = await rootBundle.load(assetPath);
+      final buffer = byteData.buffer;
+
+      final directory = Directory.systemTemp;
+      final tempFile = File('${directory.path}/${assetPath.split('/').last}');
+
+      await tempFile.writeAsBytes(
+        buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes),
+      );
+
+      return tempFile;
+    } catch (e) {
+      print('Error converting asset to file: $e');
+      return null;
     }
   }
 

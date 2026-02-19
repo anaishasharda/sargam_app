@@ -426,7 +426,8 @@ class AudioAnalysisService {
       final windowVolume = _calculateVolumeEfficient(window);
 
       // Lower threshold for mobile recordings (0.005 instead of 0.01)
-      if (windowVolume > 0.005 && windowPitch > 0) {
+      if (windowVolume > 0.002 && windowPitch > 0) {
+        // Lowered to 0.002 to catch softer singing
         windowsWithAudio++;
         pitches.add(windowPitch);
         volumes.add(windowVolume);
@@ -742,26 +743,48 @@ class AudioAnalysisService {
   }
 
   /// Enhanced pitch accuracy calculation
+  /// Enhanced pitch accuracy calculation based on finding correct notes
   double _calculateEnhancedPitchAccuracy(
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.pitch == 0 || user.pitch == 0)
-      return 50.0; // Neutral score if no pitch detected
+    if (reference.notes.isEmpty || user.notes.isEmpty)
+      return 50.0; // Neutral score if no notes detected
 
-    // Calculate cents difference (more musical than frequency ratio)
-    final centsError =
-        1200 * (math.log(user.pitch / reference.pitch) / math.log(2));
+    // Normalize notes to remove flats/sharps for simpler comparison
+    final refNotes = reference.notes.map(_normalizeSargamNote).toSet();
+    final userNotes = user.notes.map(_normalizeSargamNote).toSet();
 
-    // For Indian music, allow more deviation (up to 50 cents is acceptable)
-    // Perfect pitch: 0 cents = 100%
-    // 25 cents off = 85%
-    // 50 cents off = 70%
-    // 100 cents (semitone) = 50%
-    // More than 200 cents = 0%
-    final accuracy = 100.0 - (centsError.abs() / 2.0);
+    if (refNotes.isEmpty) return 50.0;
 
-    return math.max(0.0, math.min(100.0, accuracy));
+    // Calculate how many reference notes were found in user notes
+    int matchedNotes = 0;
+    for (final refNote in refNotes) {
+      if (userNotes.contains(refNote)) {
+        matchedNotes++;
+      }
+    }
+
+    // Base accuracy on percentage of notes hit
+    double accuracy = (matchedNotes / refNotes.length) * 100.0;
+
+    // Bonus for extra stability (if user didn't sing too many wrong notes)
+    // If user sang 10 notes but only 5 were correct for a 5-note raag, that's messy.
+    // If user sang 5 notes and all 5 were correct, that's perfect.
+    double noiseFactor = 0.0;
+    int extraNotes = 0;
+    for (final userNote in userNotes) {
+      if (!refNotes.contains(userNote)) {
+        extraNotes++;
+      }
+    }
+
+    // Penalize slightly for extra notes (wrong notes), but not too much as they might be ornamentation
+    if (extraNotes > 0) {
+      noiseFactor = (extraNotes / userNotes.length) * 20.0; // Max 20% penalty
+    }
+
+    return math.max(0.0, math.min(100.0, accuracy - noiseFactor));
   }
 
   /// Enhanced tempo accuracy calculation
@@ -863,18 +886,17 @@ class AudioAnalysisService {
     AudioCharacteristics user,
     List<String> expectedNotes,
   ) {
-    final missedNotes = <String>[];
+    final missedNotes = <String>{}; // Use Set to avoid duplicates
 
     // Normalize user's detected notes for comparison
-    // Since _frequencyToNote now returns Sargam notes directly,
-    // we just need to normalize for flat/sharp variations
     final userNotesNormalized = user.notes.map(_normalizeSargamNote).toSet();
 
     print('User detected notes (raw): ${user.notes}');
     print('User detected notes (normalized): $userNotesNormalized');
     print('Expected notes: $expectedNotes');
+    print('Reference notes from audio: ${reference.notes}');
 
-    // Check expected notes against user performance
+    // 1. Check against explicitly expected notes (from RagaData)
     for (final expectedNote in expectedNotes) {
       final normalizedExpected = _normalizeSargamNote(expectedNote);
       if (!userNotesNormalized.contains(normalizedExpected)) {
@@ -882,17 +904,37 @@ class AudioAnalysisService {
       }
     }
 
-    // Also check reference notes (already in Sargam format)
+    // 2. Also check against what was actually found in the reference audio
+    // This handles cases where RagaData might be minimal but the audio has more nuances
+    // Only add if it's a "main" note (appears frequently/strongly)
+    // For now, we trust the reference analysis
+    final refNotesNormalized = reference.notes
+        .map(_normalizeSargamNote)
+        .toSet();
     for (final refNote in reference.notes) {
-      final normalizedRef = _normalizeSargamNote(refNote);
-      if (!userNotesNormalized.contains(normalizedRef) &&
-          !missedNotes.any((m) => _normalizeSargamNote(m) == normalizedRef)) {
-        missedNotes.add(refNote);
+      // Use original to preserve formatting if added
+      final normalized = _normalizeSargamNote(refNote);
+      if (refNotesNormalized.contains(normalized) &&
+          !userNotesNormalized.contains(normalized)) {
+        // Only add if not already covered by expectedNotes logic to avoid duplicates with different formatting
+        // But we used Set<String> for missedNotes, so safe to add.
+        // We prefer the formatting from expectedNotes if available.
+        bool alreadyAccounted = false;
+        for (final mn in missedNotes) {
+          if (_normalizeSargamNote(mn) == normalized) {
+            alreadyAccounted = true;
+            break;
+          }
+        }
+
+        if (!alreadyAccounted) {
+          missedNotes.add(refNote);
+        }
       }
     }
 
     print('Missed notes: $missedNotes');
-    return missedNotes;
+    return missedNotes.toList();
   }
 
   /// Normalize Sargam note for comparison (remove flats/sharps)
