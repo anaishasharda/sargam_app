@@ -10,6 +10,13 @@ class JournalEntry {
   final int pitchAccuracy;
   final int practiceTime;
 
+  final double? avgPitch;
+  final double? avgVolume;
+  final double? bpm;
+  final List<String>? detectedNotes;
+  final double? brightness;
+  final double? stability;
+
   JournalEntry({
     this.id,
     required this.userId,
@@ -21,6 +28,12 @@ class JournalEntry {
     required this.notes,
     required this.pitchAccuracy,
     required this.practiceTime,
+    this.avgPitch,
+    this.avgVolume,
+    this.bpm,
+    this.detectedNotes,
+    this.brightness,
+    this.stability,
   });
 
   Map<String, dynamic> toFirestore() {
@@ -34,6 +47,12 @@ class JournalEntry {
       'notes': notes,
       'pitchAccuracy': pitchAccuracy,
       'practiceTime': practiceTime,
+      'avgPitch': avgPitch,
+      'avgVolume': avgVolume,
+      'bpm': bpm,
+      'detectedNotes': detectedNotes,
+      'brightness': brightness,
+      'stability': stability,
       'createdAt': DateTime.now().toIso8601String(),
     };
   }
@@ -50,6 +69,12 @@ class JournalEntry {
       notes: data['notes'] ?? '',
       pitchAccuracy: data['pitchAccuracy'] ?? 0,
       practiceTime: data['practiceTime'] ?? 0,
+      avgPitch: data['avgPitch']?.toDouble(),
+      avgVolume: data['avgVolume']?.toDouble(),
+      bpm: data['bpm']?.toDouble(),
+      detectedNotes: List<String>.from(data['detectedNotes'] ?? []),
+      brightness: data['brightness']?.toDouble(),
+      stability: data['stability']?.toDouble(),
     );
   }
 
@@ -64,6 +89,12 @@ class JournalEntry {
     String? notes,
     int? pitchAccuracy,
     int? practiceTime,
+    double? avgPitch,
+    double? avgVolume,
+    double? bpm,
+    List<String>? detectedNotes,
+    double? brightness,
+    double? stability,
   }) {
     return JournalEntry(
       id: id ?? this.id,
@@ -76,6 +107,12 @@ class JournalEntry {
       notes: notes ?? this.notes,
       pitchAccuracy: pitchAccuracy ?? this.pitchAccuracy,
       practiceTime: practiceTime ?? this.practiceTime,
+      avgPitch: avgPitch ?? this.avgPitch,
+      avgVolume: avgVolume ?? this.avgVolume,
+      bpm: bpm ?? this.bpm,
+      detectedNotes: detectedNotes ?? this.detectedNotes,
+      brightness: brightness ?? this.brightness,
+      stability: stability ?? this.stability,
     );
   }
 }

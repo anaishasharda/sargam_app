@@ -312,27 +312,64 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
           // Stats row
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildStatItem('Tempo', '${session.tempo} BPM', Icons.speed),
-              const SizedBox(width: 20),
               _buildStatItem(
                 'Time',
                 '${session.practiceTime}m',
                 Icons.access_time,
               ),
-              const SizedBox(width: 20),
-              _buildStatItem(
-                'Missed',
-                '${session.missedNotes.length}',
-                Icons.error_outline,
-              ),
+              if (session.stability != null)
+                _buildStatItem(
+                  'Stability',
+                  session.stability!.toStringAsFixed(1),
+                  Icons.psychology,
+                )
+              else
+                _buildStatItem(
+                  'Missed',
+                  '${session.missedNotes.length}',
+                  Icons.error_outline,
+                ),
             ],
           ),
 
+          if (session.avgPitch != null || session.brightness != null) ...[
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (session.avgPitch != null)
+                  _buildStatItem(
+                    'Avg Pitch',
+                    '${session.avgPitch!.toStringAsFixed(0)} Hz',
+                    Icons.graphic_eq,
+                  ),
+                if (session.brightness != null)
+                  _buildStatItem(
+                    'Brightness',
+                    session.brightness!.toStringAsFixed(0),
+                    Icons.light_mode,
+                  ),
+                if (session.detectedNotes != null &&
+                    session.detectedNotes!.isNotEmpty)
+                  _buildStatItem(
+                    'Notes',
+                    '${session.detectedNotes!.length}',
+                    Icons.music_note,
+                  ),
+              ],
+            ),
+          ],
+
           const SizedBox(height: 12),
 
-          // Missed notes details
+          // Missed notes details (only if not showing stability in main row or if we have space)
           if (session.missedNotes.isNotEmpty) ...[
+            const SizedBox(height: 8),
             const Text(
               'Missed Notes:',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),

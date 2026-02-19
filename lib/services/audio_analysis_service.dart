@@ -748,43 +748,52 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.notes.isEmpty || user.notes.isEmpty)
-      return 50.0; // Neutral score if no notes detected
+    if (reference.pitch == 0 || user.pitch == 0) return 30.0;
 
-    // Normalize notes to remove flats/sharps for simpler comparison
+    // 1. Overall pitch comparison (Macro)
+    // Compare the average pitch to see if they are in the same register
+    final pitchRatio = user.pitch / reference.pitch;
+    final pitchDeviation = (pitchRatio - 1.0).abs();
+    // Allow for octave differences (0.5, 2.0, 4.0 etc)
+    double macroScore = 100.0;
+    if (pitchDeviation > 0.1) {
+      // Check for octave equivalence
+      double octaveDiff = (math.log(pitchRatio) / math.log(2)).abs();
+      double nearestOctave = octaveDiff.roundToDouble();
+      double octaveDeviation = (octaveDiff - nearestOctave).abs();
+
+      // Score based on how close to a perfect octave
+      macroScore = math.max(0, 100.0 - (octaveDeviation * 200.0));
+    } else {
+      macroScore = math.max(0, 100.0 - (pitchDeviation * 500.0));
+    }
+
+    // 2. Note matching comparison (Micro)
+    if (reference.notes.isEmpty || user.notes.isEmpty) return macroScore;
+
     final refNotes = reference.notes.map(_normalizeSargamNote).toSet();
     final userNotes = user.notes.map(_normalizeSargamNote).toSet();
 
-    if (refNotes.isEmpty) return 50.0;
+    if (refNotes.isEmpty) return macroScore;
 
-    // Calculate how many reference notes were found in user notes
+    // Calculate intersection overlap
     int matchedNotes = 0;
     for (final refNote in refNotes) {
-      if (userNotes.contains(refNote)) {
-        matchedNotes++;
-      }
+      if (userNotes.contains(refNote)) matchedNotes++;
     }
+    double noteMatchScore = (matchedNotes / refNotes.length) * 100.0;
 
-    // Base accuracy on percentage of notes hit
-    double accuracy = (matchedNotes / refNotes.length) * 100.0;
-
-    // Bonus for extra stability (if user didn't sing too many wrong notes)
-    // If user sang 10 notes but only 5 were correct for a 5-note raag, that's messy.
-    // If user sang 5 notes and all 5 were correct, that's perfect.
-    double noiseFactor = 0.0;
+    // Penalize extra notes slightly
     int extraNotes = 0;
     for (final userNote in userNotes) {
-      if (!refNotes.contains(userNote)) {
-        extraNotes++;
-      }
+      if (!refNotes.contains(userNote)) extraNotes++;
     }
-
-    // Penalize slightly for extra notes (wrong notes), but not too much as they might be ornamentation
     if (extraNotes > 0) {
-      noiseFactor = (extraNotes / userNotes.length) * 20.0; // Max 20% penalty
+      noteMatchScore -= (extraNotes / userNotes.length) * 10.0;
     }
 
-    return math.max(0.0, math.min(100.0, accuracy - noiseFactor));
+    // Weighted average: 70% note matching, 30% overall pitch stability
+    return (noteMatchScore * 0.7 + macroScore * 0.3).clamp(0.0, 100.0);
   }
 
   /// Enhanced tempo accuracy calculation
@@ -798,20 +807,13 @@ class AudioAnalysisService {
     final tempoRatio = user.tempo / reference.tempo;
     final tempoDeviation = (tempoRatio - 1.0).abs();
 
-    // For Indian music, tempo can vary more naturally
-    // Within 10% = 100%
-    // Within 20% = 85%
-    // Within 30% = 70%
-    // More than 50% off = 50%
-    if (tempoDeviation <= 0.1) {
-      return 100.0;
-    } else if (tempoDeviation <= 0.2) {
-      return 100.0 - (tempoDeviation - 0.1) * 150.0;
-    } else if (tempoDeviation <= 0.5) {
-      return 85.0 - (tempoDeviation - 0.2) * 50.0;
-    } else {
-      return math.max(50.0, 70.0 - tempoDeviation * 40.0);
-    }
+    // Continuous exponential drop-off for smoother scoring
+    // deviation 0.0 -> score 100
+    // deviation 0.1 (10%) -> score ~90
+    // deviation 0.2 (20%) -> score ~80
+    // deviation 0.5 (50%) -> score ~50
+    final accuracy = 100.0 * math.exp(-2.0 * tempoDeviation);
+    return accuracy.clamp(0.0, 100.0);
   }
 
   /// Enhanced rhythm accuracy using cross-correlation
@@ -848,17 +850,12 @@ class AudioAnalysisService {
     final centroidRatio = userCentroid / refCentroid;
     final centroidDeviation = (centroidRatio - 1.0).abs();
 
-    // Timbre is less critical for Indian music practice
-    // Within 30% = 100%
-    // Within 50% = 80%
-    // More than 100% = 60%
-    if (centroidDeviation <= 0.3) {
-      return 100.0;
-    } else if (centroidDeviation <= 0.5) {
-      return 100.0 - (centroidDeviation - 0.3) * 100.0;
-    } else {
-      return math.max(60.0, 80.0 - centroidDeviation * 20.0);
-    }
+    // Timbre continuous scoring
+    // deviation 0.0 -> 100
+    // deviation 0.3 -> ~85
+    // deviation 1.0 -> ~60 (clamped)
+    final accuracy = 100.0 * math.exp(-1.5 * centroidDeviation);
+    return accuracy.clamp(0.0, 100.0);
   }
 
   /// Calculate weighted overall accuracy

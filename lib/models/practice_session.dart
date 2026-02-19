@@ -12,6 +12,13 @@ class PracticeSession {
   final double? tempoAccuracy;
   final double? rhythmAccuracy;
 
+  final double? avgPitch;
+  final double? avgVolume;
+  final double? bpm;
+  final List<String>? detectedNotes;
+  final double? brightness;
+  final double? stability;
+
   PracticeSession({
     this.id,
     required this.userId,
@@ -25,6 +32,12 @@ class PracticeSession {
     this.overallAccuracy,
     this.tempoAccuracy,
     this.rhythmAccuracy,
+    this.avgPitch,
+    this.avgVolume,
+    this.bpm,
+    this.detectedNotes,
+    this.brightness,
+    this.stability,
   });
 
   Map<String, dynamic> toFirestore() {
@@ -40,6 +53,12 @@ class PracticeSession {
       'overallAccuracy': overallAccuracy,
       'tempoAccuracy': tempoAccuracy,
       'rhythmAccuracy': rhythmAccuracy,
+      'avgPitch': avgPitch,
+      'avgVolume': avgVolume,
+      'bpm': bpm,
+      'detectedNotes': detectedNotes,
+      'brightness': brightness,
+      'stability': stability,
       'createdAt': DateTime.now().toIso8601String(),
     };
   }
@@ -62,6 +81,12 @@ class PracticeSession {
       overallAccuracy: data['overallAccuracy']?.toDouble(),
       tempoAccuracy: data['tempoAccuracy']?.toDouble(),
       rhythmAccuracy: data['rhythmAccuracy']?.toDouble(),
+      avgPitch: data['avgPitch']?.toDouble(),
+      avgVolume: data['avgVolume']?.toDouble(),
+      bpm: data['bpm']?.toDouble(),
+      detectedNotes: List<String>.from(data['detectedNotes'] ?? []),
+      brightness: data['brightness']?.toDouble(),
+      stability: data['stability']?.toDouble(),
     );
   }
 }

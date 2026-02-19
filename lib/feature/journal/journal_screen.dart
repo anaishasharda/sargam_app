@@ -401,8 +401,80 @@ class _JournalScreenState extends State<JournalScreen> {
                 ),
               ],
             ),
+
+            // Detailed Stats
+            if (entry.avgPitch != null && entry.avgPitch! > 0) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              _buildDetailedStats(entry),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailedStats(JournalEntry entry) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildStatItem(
+              'Pitch',
+              '${entry.avgPitch?.toStringAsFixed(1) ?? "-"} Hz',
+              Icons.graphic_eq,
+            ),
+            _buildStatItem(
+              'Volume',
+              '${((entry.avgVolume ?? 0) * 100).toStringAsFixed(0)}%',
+              Icons.volume_up,
+            ),
+            _buildStatItem(
+              'Stability',
+              '${((entry.stability ?? 0)).toStringAsFixed(1)}',
+              Icons.psychology,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildStatItem(
+              'Brightness',
+              '${(entry.brightness ?? 0).toStringAsFixed(0)}',
+              Icons.light_mode,
+            ),
+            _buildStatItem(
+              'BPM',
+              '${(entry.bpm ?? 0).toStringAsFixed(0)}',
+              Icons.speed,
+            ),
+            _buildStatItem(
+              'Notes',
+              '${entry.detectedNotes?.length ?? 0}',
+              Icons.music_note,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[400]),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 10)),
+        ],
       ),
     );
   }

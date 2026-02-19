@@ -110,6 +110,12 @@ class AppStateService extends ChangeNotifier {
         overallAccuracy: session.overallAccuracy,
         tempoAccuracy: session.tempoAccuracy,
         rhythmAccuracy: session.rhythmAccuracy,
+        avgPitch: session.avgPitch,
+        avgVolume: session.avgVolume,
+        bpm: session.bpm,
+        detectedNotes: session.detectedNotes,
+        brightness: session.brightness,
+        stability: session.stability,
       );
 
       _practiceSessions.insert(0, newSession);
@@ -141,6 +147,12 @@ class AppStateService extends ChangeNotifier {
         notes: entry.notes,
         pitchAccuracy: entry.pitchAccuracy,
         practiceTime: entry.practiceTime,
+        avgPitch: entry.avgPitch,
+        avgVolume: entry.avgVolume,
+        bpm: entry.bpm,
+        detectedNotes: entry.detectedNotes,
+        brightness: entry.brightness,
+        stability: entry.stability,
       );
 
       _journalEntries.insert(0, newEntry);

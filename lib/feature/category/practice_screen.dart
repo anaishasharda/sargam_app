@@ -40,8 +40,6 @@ class _PracticeScreenState extends State<PracticeScreen>
   AudioCharacteristics? _userCharacteristics;
   bool _showRealTimeAnalysis = false;
   bool _showCharacteristicsDisplay = false;
-  DateTime? _practiceStartTime;
-  int _practiceTimeMinutes = 0;
   String? _recordedAudioPath;
   bool _hasRecording = false;
 
@@ -67,7 +65,8 @@ class _PracticeScreenState extends State<PracticeScreen>
   void dispose() {
     if (mounted) {
       _pulseController.dispose();
-      _audioService.dispose();
+      // Do not dispose audio service as it is a singleton and needed for future playback
+      _audioService.stopAudio();
       _analysisService.dispose();
     }
     super.dispose();
@@ -95,7 +94,10 @@ class _PracticeScreenState extends State<PracticeScreen>
       backgroundColor: const Color(0xFF240046),
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Text('${widget.practiceType} - ${widget.ragaData.name}'),
+        title: Text(
+          '${widget.practiceType} - ${widget.ragaData.name}',
+          style: const TextStyle(color: Colors.white),
+        ),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -633,17 +635,13 @@ class _PracticeScreenState extends State<PracticeScreen>
     );
   }
 
+  final Stopwatch _practiceStopwatch = Stopwatch();
+
   void _toggleRecording() async {
     if (_audioService.isRecording) {
       final recordingPath = await _audioService.stopRecording();
       _pulseController.stop();
-
-      // Stop practice time tracking
-      if (_practiceStartTime != null) {
-        _practiceTimeMinutes = DateTime.now()
-            .difference(_practiceStartTime!)
-            .inMinutes;
-      }
+      _practiceStopwatch.stop();
 
       setState(() {
         _recordedAudioPath = recordingPath;
@@ -679,9 +677,8 @@ class _PracticeScreenState extends State<PracticeScreen>
 
       await _audioService.startRecording();
       _pulseController.repeat(reverse: true);
-
-      // Start practice time tracking
-      _practiceStartTime = DateTime.now();
+      _practiceStopwatch.reset();
+      _practiceStopwatch.start();
 
       setState(() {});
     }
@@ -908,15 +905,38 @@ class _PracticeScreenState extends State<PracticeScreen>
 
   void _showPracticeLogDialog(AppStateService appState, String userId) {
     final TextEditingController notesController = TextEditingController();
-    int practiceTime = _practiceTimeMinutes > 0
-        ? _practiceTimeMinutes
-        : 15; // Default 15 minutes
+
+    // Calculate effective practice time
+    final Duration elapsed = _practiceStopwatch.elapsed;
+    // Minimum 1 minute if recorded, otherwise 0
+    // But better to show actual seconds if less than a minute?
+    // User asked: "it is showing the static time of 1 min everytime, it should be dynamic depending upon the time i practiced"
+    // So let's show exact minutes and seconds.
+
+    // For the database we store integer minutes (based on existing model),
+    // but maybe we should store seconds or at least round properly.
+    // The current model has `int practiceTime` (minutes).
+    // I will round to nearest minute, but ensure at least 1 if > 30s?
+    // Let's stick to minutes for the DB for now to avoid breaking changes,
+    // but display nice formatted text.
+
+    int practiceTimeMinutes = elapsed.inMinutes;
+    if (elapsed.inSeconds > 30 && practiceTimeMinutes == 0) {
+      practiceTimeMinutes = 1;
+    }
+
+    // If manually entered/no recording, keep existing logic or default to 0
+    if (!_hasRecording && practiceTimeMinutes == 0) {
+      practiceTimeMinutes = 0;
+    }
+
+    String timeDisplay = '${elapsed.inMinutes}m ${elapsed.inSeconds % 60}s';
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text('Log Practice Session'),
+          title: const Text('Log Practice Session'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -926,18 +946,13 @@ class _PracticeScreenState extends State<PracticeScreen>
                 Text('Type: ${widget.practiceType}'),
                 const SizedBox(height: 16),
 
-                // Practice time slider
-                Text('Practice Time: $practiceTime minutes'),
-                Slider(
-                  value: practiceTime.toDouble(),
-                  min: 5,
-                  max: 120,
-                  divisions: 23,
-                  onChanged: (value) {
-                    setState(() {
-                      practiceTime = value.round();
-                    });
-                  },
+                // Display practice time directly
+                Text(
+                  'Practice Time: $timeDisplay',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
 
                 const SizedBox(height: 16),
@@ -964,7 +979,7 @@ class _PracticeScreenState extends State<PracticeScreen>
               onPressed: () => _savePracticeSession(
                 appState,
                 userId,
-                practiceTime,
+                practiceTimeMinutes,
                 notesController.text,
               ),
               child: const Text('Save'),
@@ -1008,6 +1023,14 @@ class _PracticeScreenState extends State<PracticeScreen>
         overallAccuracy: _lastFeedback?.overallAccuracy,
         tempoAccuracy: _lastFeedback?.tempoAccuracy,
         rhythmAccuracy: _lastFeedback?.rhythmAccuracy,
+        // Populate new detailed fields
+        avgPitch: _userCharacteristics?.pitch,
+        avgVolume: _userCharacteristics?.volume,
+        bpm: _userCharacteristics?.tempo,
+        detectedNotes: _userCharacteristics?.notes,
+        brightness: _userCharacteristics?.spectralCentroid,
+        stability: _userCharacteristics
+            ?.qualityScore, // Using quality score as stability proxy for now
       );
 
       await appState.addPracticeSession(practiceSession);
@@ -1024,6 +1047,12 @@ class _PracticeScreenState extends State<PracticeScreen>
           notes: notes,
           pitchAccuracy: _lastFeedback?.pitchAccuracy.round() ?? 75,
           practiceTime: practiceTime,
+          avgPitch: _userCharacteristics?.pitch,
+          avgVolume: _userCharacteristics?.volume,
+          bpm: _userCharacteristics?.tempo,
+          detectedNotes: _userCharacteristics?.notes,
+          brightness: _userCharacteristics?.spectralCentroid,
+          stability: _userCharacteristics?.qualityScore,
         );
 
         await appState.addJournalEntry(journalEntry);
