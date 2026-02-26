@@ -14,12 +14,9 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF240046),
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Text(
-          'Practice ${ragaData.name}',
-          style: TextStyle(color: Colors.white),
-        ),
+        foregroundColor: Colors.white,
+        title: Text('Practice ${ragaData.name}'),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),

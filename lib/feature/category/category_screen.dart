@@ -23,8 +23,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     //   level: 'Beginner',
     //   description: 'A beautiful evening raga with a peaceful and romantic mood',
     //   notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
-    //   aarohAudioPath: 'assets/audio/Bhoopali_Aaroh.mp4',
-    //   avrohAudioPath: 'assets/audio/Bhoopali_Aaroh.mp4',
+    //   aarohAudioPath: 'assets/audio/Bhoopali_Aaroh.wav',
+    //   avrohAudioPath: 'assets/audio/Bhoopali_Aaroh.wav',
     //   swarmalikaAudioPath: 'assets/audio/yaman_swarmalika.mp3',
     // ),
     RagaData(
@@ -32,8 +32,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       level: 'Beginner',
       description: 'A pentatonic raga with a joyful and uplifting character',
       notes: ['Sa', 'Re', 'Ga', 'Pa', 'Dha'],
-      aarohAudioPath: 'assets/audio/raag_bhoopali_aaroh.mp4',
-      avrohAudioPath: 'assets/audio/raag_bhoopali_avroh.mp4',
+      aarohAudioPath: 'assets/audio/raag_bhoopali_aaroh.wav',
+      avrohAudioPath: 'assets/audio/raag_bhoopali_avroh.wav',
       swarmalikaAudioPath: 'assets/audio/bhoopali_swarmalika.mp3',
     ),
     // Intermediate Ragas
@@ -42,8 +42,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       level: 'Intermediate',
       description: 'A morning raga with a serious and devotional mood',
       notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
-      aarohAudioPath: 'assets/audio/raag_bhairav_aaroh.mp4',
-      avrohAudioPath: 'assets/audio/raag_bhairav_avroh.mp4',
+      aarohAudioPath: 'assets/audio/raag_bhairav_aaroh.wav',
+      avrohAudioPath: 'assets/audio/raag_bhairav_avroh.wav',
       swarmalikaAudioPath: 'assets/audio/bhairav_swarmalika.mp3',
     ),
     // RagaData(

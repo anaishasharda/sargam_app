@@ -351,35 +351,57 @@ class AudioAnalysisService {
       return samples;
     }
 
-    // Find the 'data' chunk - WAV headers can be variable length
-    int dataStart = 12; // Start after 'RIFF' + size + 'WAVE'
-    while (dataStart < bytes.length - 8) {
-      final chunkId = String.fromCharCodes(
-        bytes.sublist(dataStart, dataStart + 4),
-      );
+    // Find the 'fmt ' and 'data' chunks
+    int offset = 12; // Start after 'RIFF' + size + 'WAVE'
+    int dataStart = -1;
+    int dataSize = 0;
+
+    while (offset < bytes.length - 8) {
+      final chunkId = String.fromCharCodes(bytes.sublist(offset, offset + 4));
       final chunkSize =
-          bytes[dataStart + 4] |
-          (bytes[dataStart + 5] << 8) |
-          (bytes[dataStart + 6] << 16) |
-          (bytes[dataStart + 7] << 24);
+          bytes[offset + 4] |
+          (bytes[offset + 5] << 8) |
+          (bytes[offset + 6] << 16) |
+          (bytes[offset + 7] << 24);
 
       if (chunkId == 'data') {
-        dataStart += 8; // Skip 'data' + size
-        print('Found data chunk at offset $dataStart, size: $chunkSize bytes');
-        break;
+        dataStart = offset + 8;
+        dataSize = chunkSize;
+        print('Found data chunk at offset $dataStart, size: $dataSize bytes');
+        break; // Found data, we can stop searching chunks
       }
-      dataStart += 8 + chunkSize;
+      offset += 8 + chunkSize;
     }
 
-    if (dataStart >= bytes.length) {
-      print('Could not find data chunk in WAV file');
+    if (dataStart == -1 || dataStart >= bytes.length) {
+      print('Could not find data chunk in WAV file. Fallback to offset 44.');
       // Fallback to standard 44-byte header
       dataStart = 44;
+      dataSize = bytes.length - 44;
     }
 
-    // Convert 16-bit samples
-    for (int i = dataStart; i < bytes.length - 1; i += 2) {
-      final sample = (bytes[i] | (bytes[i + 1] << 8)).toSigned(16);
+    // Ensure we don't read past the end of the file
+    int endByte = dataStart + dataSize;
+    if (endByte > bytes.length) {
+      endByte = bytes.length;
+    }
+    // Make sure we end on an even byte index for 16-bit samples
+    if ((endByte - dataStart) % 2 != 0) {
+      endByte -= 1;
+    }
+
+    // Determine how many bytes to skip to read mono safely.
+    // Assuming 16-bit (2 bytes per sample). If stereo, byteRate would be sampleRate * 4.
+    // However, record package usually records mono. We will read every 2 bytes as a sample.
+    int bytesPerSample = 2;
+
+    // Convert 16-bit PCM samples
+    for (int i = dataStart; i < endByte; i += bytesPerSample) {
+      int sample = bytes[i] | (bytes[i + 1] << 8);
+      // Convert to signed 16-bit
+      if (sample >= 32768) {
+        sample -= 65536;
+      }
       samples.add(sample / 32768.0); // Normalize to [-1, 1]
     }
 
@@ -492,6 +514,7 @@ class AudioAnalysisService {
       volume: volume,
       spectrum: spectrum,
       duration: duration,
+      pitchTrajectory: pitches,
     );
   }
 
@@ -522,6 +545,7 @@ class AudioAnalysisService {
       volume: volume,
       spectrum: spectrum,
       duration: window.length / _sampleRate,
+      pitchTrajectory: pitch > 0 ? [pitch] : [],
     );
   }
 
@@ -561,7 +585,7 @@ class AudioAnalysisService {
     // Calculate RMS to check if there's enough signal
     final rms = _calculateVolumeEfficient(window);
     // Lower threshold for mobile recordings which may be quieter
-    if (rms < 0.005) {
+    if (rms < 0.002) {
       return 0.0; // Too quiet, no pitch
     }
 
@@ -742,15 +766,52 @@ class AudioAnalysisService {
     return spectrum;
   }
 
-  /// Enhanced pitch accuracy calculation
-  /// Enhanced pitch accuracy calculation based on finding correct notes
+  /// Enhanced pitch accuracy calculation based on finding correct notes and trajectory
   double _calculateEnhancedPitchAccuracy(
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
     if (reference.pitch == 0 || user.pitch == 0) return 30.0;
 
-    // 1. Overall pitch comparison (Macro)
+    // 1. Point-by-point Pitch Trajectory Comparison
+    double trajectoryScore = 0.0;
+    if (reference.pitchTrajectory.isNotEmpty &&
+        user.pitchTrajectory.isNotEmpty) {
+      final refTraj = reference.pitchTrajectory;
+      final userTraj = user.pitchTrajectory;
+
+      int comparisons = math.min(refTraj.length, userTraj.length);
+      double totalDeviation = 0.0;
+      int validComparisons = 0;
+
+      for (int i = 0; i < comparisons; i++) {
+        int refIndex = (i * refTraj.length / comparisons).floor();
+        double rPitch = refTraj[refIndex];
+        double uPitch = userTraj[i];
+
+        if (rPitch > 0 && uPitch > 0) {
+          validComparisons++;
+          double deviation = (uPitch / rPitch - 1.0).abs();
+
+          double octaveDiff = (math.log(uPitch / rPitch) / math.log(2)).abs();
+          double nearestOctave = octaveDiff.roundToDouble();
+          double octaveDeviation = (octaveDiff - nearestOctave).abs();
+
+          if (deviation > 0.1) {
+            totalDeviation += octaveDeviation;
+          } else {
+            totalDeviation += deviation;
+          }
+        }
+      }
+
+      if (validComparisons > 0) {
+        double avgDeviation = totalDeviation / validComparisons;
+        trajectoryScore = math.max(0.0, 100.0 - (avgDeviation * 300.0));
+      }
+    }
+
+    // 2. Overall pitch comparison (Macro)
     // Compare the average pitch to see if they are in the same register
     final pitchRatio = user.pitch / reference.pitch;
     final pitchDeviation = (pitchRatio - 1.0).abs();
@@ -768,13 +829,19 @@ class AudioAnalysisService {
       macroScore = math.max(0, 100.0 - (pitchDeviation * 500.0));
     }
 
-    // 2. Note matching comparison (Micro)
-    if (reference.notes.isEmpty || user.notes.isEmpty) return macroScore;
+    // 3. Note matching comparison (Micro)
+    if (reference.notes.isEmpty || user.notes.isEmpty) {
+      if (trajectoryScore > 0) return trajectoryScore;
+      return macroScore;
+    }
 
     final refNotes = reference.notes.map(_normalizeSargamNote).toSet();
     final userNotes = user.notes.map(_normalizeSargamNote).toSet();
 
-    if (refNotes.isEmpty) return macroScore;
+    if (refNotes.isEmpty) {
+      if (trajectoryScore > 0) return trajectoryScore;
+      return macroScore;
+    }
 
     // Calculate intersection overlap
     int matchedNotes = 0;
@@ -790,6 +857,12 @@ class AudioAnalysisService {
     }
     if (extraNotes > 0) {
       noteMatchScore -= (extraNotes / userNotes.length) * 10.0;
+    }
+
+    if (trajectoryScore > 0) {
+      // Weighted average: 50% trajectory, 30% notes, 20% macro
+      return (trajectoryScore * 0.5 + noteMatchScore * 0.3 + macroScore * 0.2)
+          .clamp(0.0, 100.0);
     }
 
     // Weighted average: 70% note matching, 30% overall pitch stability
@@ -1142,8 +1215,6 @@ class AudioAnalysisService {
   }
 
   Future<List<double>> _readRecentAudioData() async {
-    // This is a placeholder for reading recent audio data from the recording
-    // In a real implementation, you would read the most recent data from the recording file
     try {
       if (_currentRecordingPath == null) return [];
 
@@ -1151,12 +1222,31 @@ class AudioAnalysisService {
       if (!await file.exists()) return [];
 
       final bytes = await file.readAsBytes();
-      if (bytes.length < 1024) return []; // Not enough data yet
+      // Need at least header + some data
+      if (bytes.length < 44 + _windowSize * 2) return [];
 
-      // Read only the most recent data (last 1KB)
-      final recentBytes = bytes.sublist(math.max(0, bytes.length - 1024));
-      return _convertBytesToSamplesEfficient(Uint8List.fromList(recentBytes));
+      // Read the most recent window size of data
+      // 2 bytes per sample for 16-bit mono
+      final bytesToRead = _windowSize * 2;
+      final startIndex = math.max(44, bytes.length - bytesToRead);
+
+      // Ensure we start on an even byte index for 16-bit
+      final adjustedStartIndex = startIndex % 2 != 0
+          ? startIndex - 1
+          : startIndex;
+
+      final recentBytes = bytes.sublist(math.max(44, adjustedStartIndex));
+
+      final samples = <double>[];
+      for (int i = 0; i < recentBytes.length - 1; i += 2) {
+        int sample = recentBytes[i] | (recentBytes[i + 1] << 8);
+        if (sample >= 32768) sample -= 65536;
+        samples.add(sample / 32768.0);
+      }
+
+      return samples;
     } catch (e) {
+      print('Error reading recent audio data: $e');
       return [];
     }
   }

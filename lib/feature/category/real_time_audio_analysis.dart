@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:math' as math;
+
 import '../../services/audio_analysis_service.dart';
 import '../../models/audio_characteristics.dart';
 import '../../models/audio_feedback.dart';
@@ -32,11 +34,9 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
   bool _isAnalyzing = false;
 
   late AnimationController _pulseController;
-  late AnimationController _waveController;
   late Animation<double> _pulseAnimation;
-  late Animation<double> _waveAnimation;
 
-  List<double> _waveformData = [];
+  final List<double> _userPitchHistory = [];
   Timer? _waveformTimer;
 
   @override
@@ -50,7 +50,6 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
   void dispose() {
     _analysisSubscription?.cancel();
     _pulseController.dispose();
-    _waveController.dispose();
     _waveformTimer?.cancel();
     _analysisService.dispose();
     super.dispose();
@@ -61,20 +60,12 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    _waveController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    );
 
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    _waveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _waveController, curve: Curves.easeInOut),
-    );
 
     _pulseController.repeat(reverse: true);
-    _waveController.repeat();
   }
 
   Future<void> _loadReferenceAudio() async {
@@ -105,6 +96,7 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
 
     setState(() {
       _isAnalyzing = true;
+      _userPitchHistory.clear();
     });
 
     try {
@@ -117,7 +109,7 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
             _currentCharacteristics = characteristics;
           });
           widget.onRealTimeUpdate(characteristics);
-          _updateWaveform(characteristics);
+          _updatePitchHistory(characteristics);
         },
         onError: (error) {
           print('Real-time analysis error: $error');
@@ -157,12 +149,10 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
     }
   }
 
-  void _updateWaveform(AudioCharacteristics characteristics) {
-    if (characteristics.spectrum.isNotEmpty) {
-      setState(() {
-        _waveformData = characteristics.spectrum.take(50).toList();
-      });
-    }
+  void _updatePitchHistory(AudioCharacteristics characteristics) {
+    setState(() {
+      _userPitchHistory.add(characteristics.pitch);
+    });
   }
 
   @override
@@ -209,8 +199,8 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
 
           const SizedBox(height: 20),
 
-          // Waveform visualization
-          if (_isAnalyzing) _buildWaveformVisualization(),
+          // Pitch visualization
+          if (_isAnalyzing) _buildPitchTrajectoryVisualization(),
 
           const SizedBox(height: 20),
 
@@ -422,22 +412,35 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
     );
   }
 
-  Widget _buildWaveformVisualization() {
+  Widget _buildPitchTrajectoryVisualization() {
     return Container(
-      height: 80,
+      height: 120,
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withOpacity(0.2)),
       ),
-      child: AnimatedBuilder(
-        animation: _waveAnimation,
-        builder: (context, child) {
-          return CustomPaint(
-            painter: WaveformPainter(_waveformData, _waveAnimation.value),
+      child: Stack(
+        children: [
+          CustomPaint(
+            painter: PitchTrajectoryPainter(
+              _referenceCharacteristics?.pitchTrajectory ?? [],
+              _userPitchHistory,
+            ),
             size: Size.infinite,
-          );
-        },
+          ),
+          Positioned(
+            bottom: 8,
+            right: 12,
+            child: Text(
+              'Pitch Match',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.5),
+                fontSize: 10,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -494,43 +497,113 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
   }
 }
 
-class WaveformPainter extends CustomPainter {
-  final List<double> waveformData;
-  final double animationValue;
+class PitchTrajectoryPainter extends CustomPainter {
+  final List<double> referenceTrajectory;
+  final List<double> userTrajectory;
 
-  WaveformPainter(this.waveformData, this.animationValue);
+  PitchTrajectoryPainter(this.referenceTrajectory, this.userTrajectory);
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (waveformData.isEmpty) return;
-
-    final paint = Paint()
-      ..color = Colors.deepPurpleAccent
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
     final width = size.width;
     final height = size.height;
-    final centerY = height / 2;
 
-    for (int i = 0; i < waveformData.length; i++) {
-      final x = (i / waveformData.length) * width;
-      final y = centerY - (waveformData[i] * height * 0.4 * animationValue);
+    // A reasonable range for the human voice (e.g., 80Hz to 1000Hz)
+    const double minPitch = 80.0;
+    const double maxPitch = 1000.0;
 
-      if (i == 0) {
+    final refPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.4)
+      ..strokeWidth = 4.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final userPaint = Paint()
+      ..color = Colors.orangeAccent
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    // We assume the total width represents the reference duration
+    // If the reference is empty, we fake an expected length for scrolling
+    int totalPoints = referenceTrajectory.isNotEmpty
+        ? referenceTrajectory.length
+        : math.max(100, userTrajectory.length);
+
+    if (referenceTrajectory.isNotEmpty) {
+      _drawTrajectory(
+        canvas,
+        referenceTrajectory,
+        refPaint,
+        width,
+        height,
+        minPitch,
+        maxPitch,
+        totalPoints,
+      );
+    }
+
+    if (userTrajectory.isNotEmpty) {
+      _drawTrajectory(
+        canvas,
+        userTrajectory,
+        userPaint,
+        width,
+        height,
+        minPitch,
+        maxPitch,
+        totalPoints,
+      );
+    }
+  }
+
+  void _drawTrajectory(
+    Canvas canvas,
+    List<double> trajectory,
+    Paint paint,
+    double width,
+    double height,
+    double minP,
+    double maxP,
+    int totalPoints,
+  ) {
+    final path = Path();
+    bool isFirst = true;
+
+    // Calculate log scale bounds
+    final logMin = math.log(minP);
+    final logMax = math.log(maxP);
+
+    for (int i = 0; i < trajectory.length; i++) {
+      final pitch = trajectory[i];
+      if (pitch <= 0 || pitch.isNaN || pitch.isInfinite) {
+        isFirst = true; // Break the line securely
+        continue;
+      }
+
+      // Log scale better represents human perception of octaves
+      final logPitch = math.log(pitch);
+      final normalizedY = (logPitch - logMin) / (logMax - logMin);
+      final clampedY = normalizedY.clamp(0.0, 1.0);
+
+      final x = (i / totalPoints) * width;
+      final y = height - (clampedY * height); // invert Y so higher pitch is up
+
+      if (isFirst) {
         path.moveTo(x, y);
+        isFirst = false;
       } else {
         path.lineTo(x, y);
       }
     }
 
+    // We can also draw circles on the active notes
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(WaveformPainter oldDelegate) {
-    return oldDelegate.waveformData != waveformData ||
-        oldDelegate.animationValue != animationValue;
+  bool shouldRepaint(PitchTrajectoryPainter oldDelegate) {
+    return oldDelegate.userTrajectory.length != userTrajectory.length ||
+        oldDelegate.referenceTrajectory.length != referenceTrajectory.length;
   }
 }

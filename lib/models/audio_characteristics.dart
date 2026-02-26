@@ -8,6 +8,7 @@ class AudioCharacteristics {
   final double volume; // RMS volume level
   final List<double> spectrum; // Frequency spectrum
   final double duration; // Duration in seconds
+  final List<double> pitchTrajectory; // Sequence of pitches over time windows
 
   const AudioCharacteristics({
     required this.pitch,
@@ -17,6 +18,7 @@ class AudioCharacteristics {
     required this.volume,
     required this.spectrum,
     required this.duration,
+    this.pitchTrajectory = const [],
   });
 
   /// Create a copy with updated values
@@ -28,6 +30,7 @@ class AudioCharacteristics {
     double? volume,
     List<double>? spectrum,
     double? duration,
+    List<double>? pitchTrajectory,
   }) {
     return AudioCharacteristics(
       pitch: pitch ?? this.pitch,
@@ -37,6 +40,7 @@ class AudioCharacteristics {
       volume: volume ?? this.volume,
       spectrum: spectrum ?? this.spectrum,
       duration: duration ?? this.duration,
+      pitchTrajectory: pitchTrajectory ?? this.pitchTrajectory,
     );
   }
 
@@ -50,6 +54,7 @@ class AudioCharacteristics {
       'volume': volume,
       'spectrum': spectrum,
       'duration': duration,
+      'pitchTrajectory': pitchTrajectory,
     };
   }
 
@@ -63,6 +68,7 @@ class AudioCharacteristics {
       volume: map['volume']?.toDouble() ?? 0.0,
       spectrum: List<double>.from(map['spectrum'] ?? []),
       duration: map['duration']?.toDouble() ?? 0.0,
+      pitchTrajectory: List<double>.from(map['pitchTrajectory'] ?? []),
     );
   }
 
@@ -186,7 +192,8 @@ class AudioCharacteristics {
         other.duration == duration &&
         other.notes.length == notes.length &&
         other.rhythm.length == rhythm.length &&
-        other.spectrum.length == spectrum.length;
+        other.spectrum.length == spectrum.length &&
+        other.pitchTrajectory.length == pitchTrajectory.length;
   }
 
   @override
@@ -197,6 +204,7 @@ class AudioCharacteristics {
         duration.hashCode ^
         notes.hashCode ^
         rhythm.hashCode ^
-        spectrum.hashCode;
+        spectrum.hashCode ^
+        pitchTrajectory.hashCode;
   }
 }

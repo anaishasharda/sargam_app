@@ -94,12 +94,9 @@ class _PracticeScreenState extends State<PracticeScreen>
       backgroundColor: const Color(0xFF240046),
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Text(
-          '${widget.practiceType} - ${widget.ragaData.name}',
-          style: const TextStyle(color: Colors.white),
-        ),
+        foregroundColor: Colors.white,
+        title: Text('${widget.practiceType} - ${widget.ragaData.name}'),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -730,18 +727,36 @@ class _PracticeScreenState extends State<PracticeScreen>
             referenceFile.path,
           );
           print('Reference analysis complete');
-          print('Reference notes: ${_referenceCharacteristics?.notes}');
+
+          // MP4 files will fail to parse and return empty characteristics.
+          // If so, we need a valid fallback so the comparison doesn't instantly return 30%.
+          if (_isEmptyCharacteristics(_referenceCharacteristics!)) {
+            print(
+              'Reference file could not be parsed as WAV. Using valid fallback reference.',
+            );
+            _referenceCharacteristics = AudioCharacteristics(
+              pitch: 261.63, // Middle C fallback
+              tempo: 60.0, // Standard tempo fallback
+              rhythm: const [1.0, 0.5, 1.0, 0.5], // Non-empty rhythm fallback
+              notes: widget.ragaData.notes,
+              volume: 0.5,
+              spectrum: const [],
+              duration: 5.0,
+            );
+          } else {
+            print('Reference notes: ${_referenceCharacteristics?.notes}');
+          }
         } else {
           print('Failed to load reference audio file: ${widget.audioPath}');
           // Fallback to raga notes if file analysis fails (better than nothing)
           _referenceCharacteristics = AudioCharacteristics(
             pitch: 261.63, // Fallback
             tempo: 60.0,
-            rhythm: const [],
+            rhythm: const [1.0, 0.5, 1.0, 0.5], // Non-empty rhythm fallback
             notes: widget.ragaData.notes,
             volume: 0.5,
             spectrum: const [],
-            duration: 0.0,
+            duration: 5.0,
           );
         }
       }

@@ -19,6 +19,7 @@ class LevelDetailScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF240046),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: Container(
