@@ -109,6 +109,26 @@ class AudioAnalysisService {
       );
       print('Expected Notes: $expectedNotes');
 
+      // If the user produced no audible signal (silence or background noise only)
+      // return near-zero accuracy immediately instead of inflated "neutral" scores.
+      const double silenceVolumeThreshold = 0.01;
+      if (user.volume < silenceVolumeThreshold && user.pitch == 0) {
+        print('User audio is silent – returning zero accuracy.');
+        return AudioFeedback(
+          pitchAccuracy: 0.0,
+          tempoAccuracy: 0.0,
+          rhythmAccuracy: 0.0,
+          overallAccuracy: 0.0,
+          missedNotes: List<String>.from(expectedNotes),
+          suggestions: [
+            'No singing detected. Please sing clearly into the microphone.',
+          ],
+          overallFeedback:
+              'No singing detected. Make sure your microphone is working and try again.',
+          characteristics: user,
+        );
+      }
+
       // Enhanced pitch accuracy using frequency domain analysis
       final pitchAccuracy = _calculateEnhancedPitchAccuracy(reference, user);
       print('Pitch Accuracy: ${pitchAccuracy.toStringAsFixed(2)}%');
@@ -448,8 +468,8 @@ class AudioAnalysisService {
       final windowVolume = _calculateVolumeEfficient(window);
 
       // Lower threshold for mobile recordings (0.005 instead of 0.01)
-      if (windowVolume > 0.002 && windowPitch > 0) {
-        // Lowered to 0.002 to catch softer singing
+      if (windowVolume > 0.02 && windowPitch > 0) {
+        // 0.02 RMS is a meaningful threshold – filters out background mic noise
         windowsWithAudio++;
         pitches.add(windowPitch);
         volumes.add(windowVolume);
@@ -584,8 +604,9 @@ class AudioAnalysisService {
 
     // Calculate RMS to check if there's enough signal
     final rms = _calculateVolumeEfficient(window);
-    // Lower threshold for mobile recordings which may be quieter
-    if (rms < 0.002) {
+    // Must have a meaningful signal before attempting pitch detection.
+    // 0.01 filters background mic noise; raise if false positives persist.
+    if (rms < 0.01) {
       return 0.0; // Too quiet, no pitch
     }
 
@@ -611,8 +632,9 @@ class AudioAnalysisService {
       }
     }
 
-    // Lower threshold for pitch detection - 0.2 instead of 0.3
-    if (maxValue < 0.2) {
+    // Confidence threshold: 0.4 means the autocorrelation peak must be at least
+    // 40% of the zero-lag energy. Background noise rarely crosses this.
+    if (maxValue < 0.4) {
       return 0.0;
     }
 
@@ -771,7 +793,9 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.pitch == 0 || user.pitch == 0) return 30.0;
+    // If user has no detected pitch, they weren't singing – score is 0, not a neutral fallback.
+    if (user.pitch == 0) return 0.0;
+    if (reference.pitch == 0) return 30.0;
 
     // 1. Point-by-point Pitch Trajectory Comparison
     double trajectoryScore = 0.0;
@@ -874,8 +898,10 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.tempo == 0 || user.tempo == 0)
-      return 70.0; // Neutral score if tempo not detected
+    // If user tempo was not detected, they likely weren't singing – return 0 instead of a high neutral.
+    if (user.tempo == 0) return 0.0;
+    if (reference.tempo == 0)
+      return 50.0; // Neutral only when reference is missing
 
     final tempoRatio = user.tempo / reference.tempo;
     final tempoDeviation = (tempoRatio - 1.0).abs();
@@ -894,16 +920,18 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.rhythm.isEmpty || user.rhythm.isEmpty)
-      return 75.0; // Neutral score if rhythm not detected
+    // If user has no rhythm data, they weren't singing – return 0, not a high neutral.
+    if (user.rhythm.isEmpty) return 0.0;
+    if (reference.rhythm.isEmpty)
+      return 50.0; // Neutral only when reference is missing
 
     final correlation = _crossCorrelation(reference.rhythm, user.rhythm);
 
-    // Normalize correlation to 0-100 range with better scaling
-    // Correlation of 0.5 or higher is considered good for rhythm
-    final accuracy = math.min(100.0, (correlation + 0.5) * 100.0);
+    // Normalize correlation to 0-100 range
+    // correlation of 1.0 -> 100, 0.0 -> 50, -1.0 -> 0
+    final accuracy = math.min(100.0, (correlation + 1.0) * 50.0);
 
-    return math.max(50.0, accuracy); // Minimum 50% for attempting rhythm
+    return accuracy.clamp(0.0, 100.0); // Removed artificial 50% floor
   }
 
   /// Calculate timbre accuracy using spectral features
@@ -911,14 +939,16 @@ class AudioAnalysisService {
     AudioCharacteristics reference,
     AudioCharacteristics user,
   ) {
-    if (reference.spectrum.isEmpty || user.spectrum.isEmpty)
-      return 80.0; // Neutral score if spectrum not available
+    // If user has no spectrum, likely silent – return 0 instead of a high neutral.
+    if (user.spectrum.isEmpty) return 0.0;
+    if (reference.spectrum.isEmpty) return 50.0;
 
     // Calculate spectral centroid similarity
     final refCentroid = reference.spectralCentroid;
     final userCentroid = user.spectralCentroid;
 
-    if (refCentroid == 0 || userCentroid == 0) return 80.0;
+    if (userCentroid == 0) return 0.0;
+    if (refCentroid == 0) return 50.0;
 
     final centroidRatio = userCentroid / refCentroid;
     final centroidDeviation = (centroidRatio - 1.0).abs();

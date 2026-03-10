@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:sargam_app/services/audio_service.dart';
 import 'package:sargam_app/services/audio_analysis_service.dart';
 import 'package:sargam_app/services/app_state_service.dart';
+import 'package:sargam_app/services/ai_analysis_service.dart';
 
 import '../../models/audio_feedback.dart';
 import '../../models/audio_characteristics.dart';
@@ -42,6 +43,10 @@ class _PracticeScreenState extends State<PracticeScreen>
   bool _showCharacteristicsDisplay = false;
   String? _recordedAudioPath;
   bool _hasRecording = false;
+
+  int _selectedAnalysisTab = 0; // 0 for Algorithmic, 1 for AI
+  String? _aiFeedbackText;
+  bool _isFetchingAIFeedback = false;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -185,7 +190,10 @@ class _PracticeScreenState extends State<PracticeScreen>
 
             // Audio feedback section
             if (_lastFeedback != null) ...[
-              _buildFeedbackCard(),
+              _buildAnalysisTabsRow(),
+              const SizedBox(height: 16),
+              if (_selectedAnalysisTab == 0) _buildFeedbackCard(),
+              if (_selectedAnalysisTab == 1) _buildAIFeedbackCard(),
               const SizedBox(height: 24),
             ],
 
@@ -445,6 +453,135 @@ class _PracticeScreenState extends State<PracticeScreen>
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+
+  Widget _buildAnalysisTabsRow() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedAnalysisTab = 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedAnalysisTab == 0
+                      ? Colors.deepPurpleAccent
+                      : Colors.transparent,
+                  border: Border.all(color: Colors.deepPurpleAccent),
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(8),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Current Analysis',
+                  style: TextStyle(
+                    color: _selectedAnalysisTab == 0
+                        ? Colors.white
+                        : Colors.deepPurpleAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedAnalysisTab = 1),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedAnalysisTab == 1
+                      ? Colors.deepPurpleAccent
+                      : Colors.transparent,
+                  border: Border.all(color: Colors.deepPurpleAccent),
+                  borderRadius: const BorderRadius.horizontal(
+                    right: Radius.circular(8),
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'AI Analysis',
+                  style: TextStyle(
+                    color: _selectedAnalysisTab == 1
+                        ? Colors.white
+                        : Colors.deepPurpleAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAIFeedbackCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.smart_toy, color: Colors.deepPurpleAccent, size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'AI Guru Feedback',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_isFetchingAIFeedback)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Analyzing your performance...',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_aiFeedbackText != null)
+            Text(
+              _aiFeedbackText!,
+              style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 15,
+                height: 1.5,
+              ),
+            )
+          else
+            const Text(
+              'No AI feedback available.',
+              style: TextStyle(color: Colors.grey),
+            ),
+        ],
+      ),
     );
   }
 
@@ -801,7 +938,11 @@ class _PracticeScreenState extends State<PracticeScreen>
         _isAnalyzing = false;
         _lastFeedback = feedback;
         _showCharacteristicsDisplay = true;
+        _aiFeedbackText = null;
+        _selectedAnalysisTab = 0;
       });
+
+      _fetchAIFeedback();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -827,75 +968,32 @@ class _PracticeScreenState extends State<PracticeScreen>
     }
   }
 
-  void _toggleRealTimeAnalysis() {
+  Future<void> _fetchAIFeedback() async {
+    if (_recordedAudioPath == null) return;
     setState(() {
-      _showRealTimeAnalysis = !_showRealTimeAnalysis;
+      _isFetchingAIFeedback = true;
+      _aiFeedbackText = null;
     });
-  }
 
-  void _toggleCharacteristicsDisplay() {
-    setState(() {
-      _showCharacteristicsDisplay = !_showCharacteristicsDisplay;
-    });
-  }
-
-  void _testAudioFile() async {
     try {
-      print('Testing audio file: ${widget.audioPath}');
-      print('Raga: ${widget.ragaData.name}');
-      print('Practice Type: ${widget.practiceType}');
-
-      await _audioService.playAudio(
-        widget.audioPath,
+      final aiFeedback = await AIAnalysisService().getAIFeedback(
+        userAudioPath: _recordedAudioPath!,
+        expectedNotes: widget.ragaData.notes,
         ragaName: widget.ragaData.name,
-        practiceType: widget.practiceType,
       );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Testing audio file: ${widget.audioPath}'),
-          backgroundColor: Colors.blue,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _aiFeedbackText = aiFeedback;
+          _isFetchingAIFeedback = false;
+        });
+      }
     } catch (e) {
-      print('Error testing audio: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error testing audio: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  void _checkAudioFileExists() async {
-    try {
-      final exists = await _audioService.checkAudioFileExists(widget.audioPath);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            exists
-                ? 'Audio file exists: ${widget.audioPath}'
-                : 'Audio file does not exist: ${widget.audioPath}',
-          ),
-          backgroundColor: exists ? Colors.green : Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error checking file: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _aiFeedbackText = 'Failed to generate AI feedback: $e';
+          _isFetchingAIFeedback = false;
+        });
+      }
     }
   }
 

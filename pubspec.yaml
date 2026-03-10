@@ -42,6 +42,7 @@ dependencies:
   permission_handler: 
   record: 
   flutter_tts:
+  google_generative_ai: ^0.4.3
   # Audio analysis dependencies
   fftea: 
   flutter_pitch_detection:
