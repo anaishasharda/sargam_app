@@ -13,6 +13,7 @@ import '../../models/practice_session.dart';
 import '../../models/journal_entry.dart';
 import 'real_time_audio_analysis.dart';
 import 'audio_characteristics_display.dart';
+import '../../models/ai_feedback_result.dart';
 
 class PracticeScreen extends StatefulWidget {
   final RagaData ragaData;
@@ -45,8 +46,9 @@ class _PracticeScreenState extends State<PracticeScreen>
   bool _hasRecording = false;
 
   int _selectedAnalysisTab = 0; // 0 for Algorithmic, 1 for AI
-  String? _aiFeedbackText;
+  AIFeedbackResult? _aiFeedback;
   bool _isFetchingAIFeedback = false;
+  String? _aiFeedbackError;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -566,20 +568,195 @@ class _PracticeScreenState extends State<PracticeScreen>
                 ),
               ),
             )
-          else if (_aiFeedbackText != null)
-            Text(
-              _aiFeedbackText!,
-              style: TextStyle(
-                color: Colors.grey[800],
-                fontSize: 15,
-                height: 1.5,
-              ),
+          else if (_aiFeedbackError != null)
+            Text(_aiFeedbackError!, style: TextStyle(color: Colors.red[700]))
+          else if (_aiFeedback != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Display numeric parameters
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildParameterItem(
+                        'Pitch',
+                        '${_aiFeedback!.pitch.toStringAsFixed(1)} Hz',
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildParameterItem(
+                        'Tempo',
+                        '${_aiFeedback!.tempo.toStringAsFixed(0)} BPM',
+                        Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildParameterItem(
+                        'Brightness',
+                        '${_aiFeedback!.brightness.toStringAsFixed(0)}%',
+                        Colors.teal,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildParameterItem(
+                        'Stability',
+                        '${_aiFeedback!.stability.toStringAsFixed(0)}%',
+                        Colors.indigo,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildParameterItem(
+                        'Duration',
+                        '${_aiFeedback!.duration.toStringAsFixed(1)}s',
+                        Colors.purple,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: SizedBox(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Display Notes arrays
+                if (_aiFeedback!.detectedNotes.isNotEmpty) ...[
+                  const Text(
+                    'Detected Notes:',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: _aiFeedback!.detectedNotes
+                        .map(
+                          (note) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green[200]!),
+                            ),
+                            child: Text(
+                              note,
+                              style: TextStyle(
+                                color: Colors.green[700],
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                if (_aiFeedback!.missingNotes.isNotEmpty) ...[
+                  const Text(
+                    'Missing Notes:',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: _aiFeedback!.missingNotes
+                        .map(
+                          (note) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.orange[200]!),
+                            ),
+                            child: Text(
+                              note,
+                              style: TextStyle(
+                                color: Colors.orange[700],
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Display verbal feedback
+                const Text(
+                  'Feedback:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _aiFeedback!.feedback,
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
             )
           else
             const Text(
               'No AI feedback available.',
               style: TextStyle(color: Colors.grey),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildParameterItem(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -938,7 +1115,8 @@ class _PracticeScreenState extends State<PracticeScreen>
         _isAnalyzing = false;
         _lastFeedback = feedback;
         _showCharacteristicsDisplay = true;
-        _aiFeedbackText = null;
+        _aiFeedback = null;
+        _aiFeedbackError = null;
         _selectedAnalysisTab = 0;
       });
 
@@ -972,25 +1150,26 @@ class _PracticeScreenState extends State<PracticeScreen>
     if (_recordedAudioPath == null) return;
     setState(() {
       _isFetchingAIFeedback = true;
-      _aiFeedbackText = null;
+      _aiFeedback = null;
+      _aiFeedbackError = null;
     });
 
     try {
-      final aiFeedback = await AIAnalysisService().getAIFeedback(
+      final aiFeedbackResult = await AIAnalysisService().getAIFeedback(
         userAudioPath: _recordedAudioPath!,
         expectedNotes: widget.ragaData.notes,
         ragaName: widget.ragaData.name,
       );
       if (mounted) {
         setState(() {
-          _aiFeedbackText = aiFeedback;
+          _aiFeedback = aiFeedbackResult;
           _isFetchingAIFeedback = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _aiFeedbackText = 'Failed to generate AI feedback: $e';
+          _aiFeedbackError = 'Failed to generate AI feedback: $e';
           _isFetchingAIFeedback = false;
         });
       }
@@ -1136,14 +1315,13 @@ class _PracticeScreenState extends State<PracticeScreen>
         overallAccuracy: _lastFeedback?.overallAccuracy,
         tempoAccuracy: _lastFeedback?.tempoAccuracy,
         rhythmAccuracy: _lastFeedback?.rhythmAccuracy,
-        // Populate new detailed fields
-        avgPitch: _userCharacteristics?.pitch,
-        avgVolume: _userCharacteristics?.volume,
-        bpm: _userCharacteristics?.tempo,
-        detectedNotes: _userCharacteristics?.notes,
-        brightness: _userCharacteristics?.spectralCentroid,
-        stability: _userCharacteristics
-            ?.qualityScore, // Using quality score as stability proxy for now
+        // Populate new detailed fields from AI feedback if available
+        avgPitch: _aiFeedback?.pitch ?? _userCharacteristics?.pitch,
+        avgVolume: null, // Volume parameter is removed per request
+        bpm: _aiFeedback?.tempo ?? _userCharacteristics?.tempo,
+        detectedNotes: _aiFeedback?.detectedNotes ?? _userCharacteristics?.notes,
+        brightness: _aiFeedback?.brightness ?? _userCharacteristics?.spectralCentroid,
+        stability: _aiFeedback?.stability ?? _userCharacteristics?.qualityScore,
       );
 
       await appState.addPracticeSession(practiceSession);
@@ -1160,12 +1338,12 @@ class _PracticeScreenState extends State<PracticeScreen>
           notes: notes,
           pitchAccuracy: _lastFeedback?.pitchAccuracy.round() ?? 75,
           practiceTime: practiceTime,
-          avgPitch: _userCharacteristics?.pitch,
-          avgVolume: _userCharacteristics?.volume,
-          bpm: _userCharacteristics?.tempo,
-          detectedNotes: _userCharacteristics?.notes,
-          brightness: _userCharacteristics?.spectralCentroid,
-          stability: _userCharacteristics?.qualityScore,
+          avgPitch: _aiFeedback?.pitch ?? _userCharacteristics?.pitch,
+          avgVolume: null,
+          bpm: _aiFeedback?.tempo ?? _userCharacteristics?.tempo,
+          detectedNotes: _aiFeedback?.detectedNotes ?? _userCharacteristics?.notes,
+          brightness: _aiFeedback?.brightness ?? _userCharacteristics?.spectralCentroid,
+          stability: _aiFeedback?.stability ?? _userCharacteristics?.qualityScore,
         );
 
         await appState.addJournalEntry(journalEntry);
