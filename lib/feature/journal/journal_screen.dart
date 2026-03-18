@@ -473,75 +473,86 @@ class _JournalScreenState extends State<JournalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Practice Journal',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Practice Journal',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Track your daily progress and practice sessions',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.8),
+                const SizedBox(height: 8),
+                Text(
+                  'Track your daily progress and practice sessions',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              _buildProgressDashboard(),
-              const SizedBox(height: 16),
-              _buildQuickRecordCard(),
-            ],
+                const SizedBox(height: 20),
+                _buildProgressDashboard(),
+                const SizedBox(height: 16),
+                _buildQuickRecordCard(),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
-        Expanded(
-          child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        if (_isLoading)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          )
+        else if (_journalEntries.isEmpty)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.book_outlined,
+                    size: 64,
+                    color: Colors.white54,
                   ),
-                )
-              : _journalEntries.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.book_outlined,
-                        size: 64,
-                        color: Colors.white54,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'No journal entries yet',
-                        style: TextStyle(color: Colors.white54, fontSize: 18),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Start recording your practice sessions!',
-                        style: TextStyle(color: Colors.white38, fontSize: 14),
-                      ),
-                    ],
+                  SizedBox(height: 16),
+                  Text(
+                    'No journal entries yet',
+                    style: TextStyle(color: Colors.white54, fontSize: 18),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: _journalEntries.length,
-                  itemBuilder: (context, index) {
-                    final entry = _journalEntries[index];
-                    return _buildJournalEntryCard(entry);
-                  },
-                ),
-        ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Start recording your practice sessions!',
+                    style: TextStyle(color: Colors.white38, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverList.builder(
+              itemCount: _journalEntries.length,
+              itemBuilder: (context, index) {
+                final entry = _journalEntries[index];
+                return _buildJournalEntryCard(entry);
+              },
+            ),
+          ),
       ],
     );
   }
@@ -602,8 +613,8 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  horizontal: 10,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
                   color: metrics.trendColor.withOpacity(0.16),
@@ -616,25 +627,26 @@ class _JournalScreenState extends State<JournalScreen> {
                   metrics.trendLabel,
                   style: TextStyle(
                     color: metrics.trendColor,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             'Brief view of your past practice. Gemini can expand this into a detailed improvement plan.',
             style: TextStyle(
               color: Colors.white.withOpacity(0.75),
-              fontSize: 13,
+              fontSize: 12,
               height: 1.35,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Wrap(
-            spacing: 12,
-            runSpacing: 12,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               _buildDashboardMetric(
                 'Sessions',
@@ -658,10 +670,10 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _buildInlineInsight('Weekly', '${metrics.weeklyMinutes} min'),
               _buildInlineInsight('Focus Raga', metrics.focusRaga),
@@ -674,24 +686,27 @@ class _JournalScreenState extends State<JournalScreen> {
                 _buildInlineInsight(
                   'Brightness',
                   metrics.averageBrightness!.toStringAsFixed(0),
-                ),
+              ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurpleAccent,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
               onPressed: _showProgressAnalysisDialog,
-              icon: const Icon(Icons.auto_awesome),
-              label: const Text('Detailed AI Analysis'),
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: const Text(
+                'Detailed AI Analysis',
+                style: TextStyle(fontSize: 13),
+              ),
             ),
           ),
         ],
@@ -702,7 +717,7 @@ class _JournalScreenState extends State<JournalScreen> {
   Widget _buildDashboardShell({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -783,8 +798,8 @@ class _JournalScreenState extends State<JournalScreen> {
 
   Widget _buildDashboardMetric(String label, String value, IconData icon) {
     return Container(
-      width: 145,
-      padding: const EdgeInsets.all(14),
+      width: 132,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16),
@@ -793,18 +808,24 @@ class _JournalScreenState extends State<JournalScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.white70, size: 18),
-          const SizedBox(height: 10),
+          Icon(icon, color: Colors.white70, size: 16),
+          const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.7))),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.7),
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -812,7 +833,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
   Widget _buildInlineInsight(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.18),
         borderRadius: BorderRadius.circular(999),
