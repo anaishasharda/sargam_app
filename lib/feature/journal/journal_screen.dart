@@ -88,43 +88,52 @@ class _JournalScreenState extends State<JournalScreen> {
     required List<PracticeSession> practiceSessions,
     required List<JournalEntry> journalEntries,
   }) {
-    if (practiceSessions.isNotEmpty) {
-      final sortedSessions = [...practiceSessions]
-        ..sort((a, b) => b.date.compareTo(a.date));
-      return sortedSessions
-          .map(
-            (session) => _PracticeSnapshot(
-              date: session.date,
-              raga: session.raga,
-              type: session.type,
-              practiceTime: session.practiceTime,
-              pitchAccuracy: session.pitchAccuracy,
-              stability: session.stability,
-              brightness: session.brightness,
-              bpm: session.bpm ?? session.tempo.toDouble(),
-              source: 'practice_session',
-            ),
-          )
-          .toList();
+    // Merge BOTH sources into one unified chronological list
+    final List<_PracticeSnapshot> merged = [];
+
+    for (final session in practiceSessions) {
+      merged.add(
+        _PracticeSnapshot(
+          date: session.date,
+          raga: session.raga,
+          type: session.type,
+          practiceTime: session.practiceTime,
+          pitchAccuracy: session.pitchAccuracy,
+          stability: session.stability,
+          brightness: session.brightness,
+          bpm: session.bpm ?? session.tempo.toDouble(),
+          detectedNotes: session.detectedNotes,
+          missingNotesAI: session.missingNotesAI,
+          aiFeedback: session.aiFeedback,
+          notes: null,
+          source: 'practice_session',
+        ),
+      );
     }
 
-    final fallbackSnapshots = journalEntries
-        .map(
-          (entry) => _PracticeSnapshot(
-            date: entry.date,
-            raga: entry.raga,
-            type: entry.type,
-            practiceTime: entry.practiceTime,
-            pitchAccuracy: entry.pitchAccuracy,
-            stability: entry.stability,
-            brightness: entry.brightness,
-            bpm: entry.bpm,
-            source: 'journal_entry',
-          ),
-        )
-        .toList();
-    fallbackSnapshots.sort((a, b) => b.date.compareTo(a.date));
-    return fallbackSnapshots;
+    for (final entry in journalEntries) {
+      merged.add(
+        _PracticeSnapshot(
+          date: entry.date,
+          raga: entry.raga,
+          type: entry.type,
+          practiceTime: entry.practiceTime,
+          pitchAccuracy: entry.pitchAccuracy,
+          stability: entry.stability,
+          brightness: entry.brightness,
+          bpm: entry.bpm,
+          detectedNotes: entry.detectedNotes,
+          missingNotesAI: entry.missingNotesAI,
+          aiFeedback: entry.aiFeedback,
+          notes: entry.notes.isNotEmpty ? entry.notes : null,
+          source: 'journal_entry',
+          entryId: entry.id,
+        ),
+      );
+    }
+
+    merged.sort((a, b) => b.date.compareTo(a.date));
+    return merged;
   }
 
   _PracticeDashboardMetrics? _computeDashboardMetrics(
@@ -516,27 +525,28 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
             ),
           )
-        else if (_journalEntries.isEmpty)
-          const SliverFillRemaining(
+        else if (_practiceSnapshots.isEmpty)
+          SliverFillRemaining(
             hasScrollBody: false,
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.book_outlined,
+                    Icons.music_note_outlined,
                     size: 64,
                     color: Colors.white54,
                   ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No journal entries yet',
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No practice history yet',
                     style: TextStyle(color: Colors.white54, fontSize: 18),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
-                    'Start recording your practice sessions!',
-                    style: TextStyle(color: Colors.white38, fontSize: 14),
+                    'Complete a practice session or add a journal entry\nto see your progress here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white38, fontSize: 14, height: 1.5),
                   ),
                 ],
               ),
@@ -546,10 +556,10 @@ class _JournalScreenState extends State<JournalScreen> {
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             sliver: SliverList.builder(
-              itemCount: _journalEntries.length,
+              itemCount: _practiceSnapshots.length,
               itemBuilder: (context, index) {
-                final entry = _journalEntries[index];
-                return _buildJournalEntryCard(entry);
+                final snapshot = _practiceSnapshots[index];
+                return _buildSnapshotCard(snapshot);
               },
             ),
           ),
@@ -927,7 +937,8 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
-  Widget _buildJournalEntryCard(JournalEntry entry) {
+  Widget _buildSnapshotCard(_PracticeSnapshot snapshot) {
+    final isRecorded = snapshot.source == 'practice_session';
     return Card(
       color: Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
@@ -937,6 +948,7 @@ class _JournalScreenState extends State<JournalScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header row: date + accuracy badge
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -945,16 +957,16 @@ class _JournalScreenState extends State<JournalScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _formatDate(entry.date),
+                        _formatDate(snapshot.date),
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           color: Colors.grey,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        entry.raga,
+                        snapshot.raga,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -964,6 +976,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   ),
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -972,108 +985,223 @@ class _JournalScreenState extends State<JournalScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: _getAccuracyColor(
-                          entry.pitchAccuracy,
+                          snapshot.pitchAccuracy,
                         ).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: _getAccuracyColor(entry.pitchAccuracy),
+                          color: _getAccuracyColor(snapshot.pitchAccuracy),
                           width: 1,
                         ),
                       ),
                       child: Text(
-                        '${entry.pitchAccuracy}%',
+                        '${snapshot.pitchAccuracy}%',
                         style: TextStyle(
-                          color: _getAccuracyColor(entry.pitchAccuracy),
+                          color: _getAccuracyColor(snapshot.pitchAccuracy),
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _showEditEntryDialog(context, entry);
-                        } else if (value == 'delete') {
-                          _showDeleteConfirmation(context, entry);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 20),
-                              SizedBox(width: 8),
-                              Text('Edit'),
-                            ],
+                    // Edit/delete menu for manual journal entries
+                    if (!isRecorded && snapshot.entryId != null) ...[  
+                      const SizedBox(width: 4),
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, color: Colors.grey[600], size: 20),
+                        onSelected: (value) {
+                          final entry = _journalEntries.firstWhere(
+                            (e) => e.id == snapshot.entryId,
+                            orElse: () => JournalEntry(
+                              userId: '',
+                              date: snapshot.date,
+                              raga: snapshot.raga,
+                              sur: '',
+                              taal: '',
+                              type: snapshot.type,
+                              notes: snapshot.notes ?? '',
+                              pitchAccuracy: snapshot.pitchAccuracy,
+                              practiceTime: snapshot.practiceTime,
+                            ),
+                          );
+                          if (value == 'edit') {
+                            _showEditEntryDialog(context, entry);
+                          } else if (value == 'delete') {
+                            _showDeleteConfirmation(context, entry);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 18),
+                                SizedBox(width: 8),
+                                Text('Edit'),
+                              ],
+                            ),
                           ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 20, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text(
-                                'Delete',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ],
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 18, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('Delete', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            // Source + type tags
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildTag(entry.sur, Icons.music_note, Colors.green),
-                _buildTag(entry.taal, Icons.timer, Colors.blue),
-                _buildTag(entry.type, Icons.trending_up, Colors.orange),
+                _buildTag(
+                  isRecorded ? '🎙 Recorded' : '📝 Manual',
+                  isRecorded ? Icons.mic : Icons.edit_note,
+                  isRecorded ? Colors.deepPurple : Colors.teal,
+                ),
+                _buildTag(snapshot.type, Icons.trending_up, Colors.orange),
               ],
             ),
-            const SizedBox(height: 16),
-            if (entry.notes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            // Practice time row
+            Row(
+              children: [
+                Icon(Icons.access_time, size: 15, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+                Text(
+                  '${snapshot.practiceTime} min',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+                if (snapshot.bpm != null && snapshot.bpm! > 0) ...[
+                  const SizedBox(width: 12),
+                  Icon(Icons.speed, size: 15, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${snapshot.bpm!.toStringAsFixed(0)} BPM',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ],
+              ],
+            ),
+            // Manual notes
+            if (snapshot.notes != null && snapshot.notes!.isNotEmpty) ...[
+              const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  entry.notes,
+                  snapshot.notes!,
                   style: TextStyle(
                     color: Colors.grey[700],
-                    fontSize: 14,
+                    fontSize: 13,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
             ],
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Text(
-                  '${entry.practiceTime} minutes',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-              ],
-            ),
-            if (entry.avgPitch != null && entry.avgPitch! > 0) ...[
-              const SizedBox(height: 16),
-              const Divider(),
+            // Detailed audio stats
+            if (snapshot.stability != null || snapshot.brightness != null) ...[
+              const SizedBox(height: 14),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              _buildSnapshotStats(snapshot),
+            ],
+            // Missing swaras chips
+            if (snapshot.missingNotesAI != null &&
+                snapshot.missingNotesAI!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 14,
+                    color: Colors.orange[700],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Missing swaras:',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: snapshot.missingNotesAI!
+                    .map(
+                      (note) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.35),
+                          ),
+                        ),
+                        child: Text(
+                          note,
+                          style: TextStyle(
+                            color: Colors.orange[800],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+            // Detected swaras chips
+            if (snapshot.detectedNotes != null &&
+                snapshot.detectedNotes!.isNotEmpty) ...[
               const SizedBox(height: 8),
-              _buildDetailedStats(entry),
+              Row(
+                children: [
+                  Icon(Icons.check_circle_outline, size: 14, color: Colors.green[700]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Detected:',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      snapshot.detectedNotes!.join(', '),
+                      style: TextStyle(color: Colors.green[800], fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            // AI Feedback section (collapsible)
+            if (snapshot.aiFeedback != null &&
+                snapshot.aiFeedback!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _AiFeedbackSection(feedback: snapshot.aiFeedback!),
             ],
           ],
         ),
@@ -1081,53 +1209,36 @@ class _JournalScreenState extends State<JournalScreen> {
     );
   }
 
-  Widget _buildDetailedStats(JournalEntry entry) {
-    return Column(
+  Widget _buildSnapshotStats(_PracticeSnapshot snapshot) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildStatItem(
-              'Pitch',
-              '${entry.avgPitch?.toStringAsFixed(1) ?? "-"} Hz',
-              Icons.graphic_eq,
-            ),
-            _buildStatItem(
-              'Volume',
-              '${((entry.avgVolume ?? 0) * 100).toStringAsFixed(0)}%',
-              Icons.volume_up,
-            ),
-            _buildStatItem(
-              'Stability',
-              '${((entry.stability ?? 0)).toStringAsFixed(1)}',
-              Icons.psychology,
-            ),
-          ],
+        if (snapshot.stability != null)
+          _buildStatItem(
+            'Stability',
+            snapshot.stability!.toStringAsFixed(1),
+            Icons.psychology,
+          ),
+        if (snapshot.brightness != null)
+          _buildStatItem(
+            'Brightness',
+            snapshot.brightness!.toStringAsFixed(0),
+            Icons.light_mode,
+          ),
+        _buildStatItem(
+          'Missing',
+          '${snapshot.missingNotesAI?.length ?? 0} swara${(snapshot.missingNotesAI?.length ?? 0) == 1 ? '' : 's'}',
+          Icons.warning_amber,
         ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildStatItem(
-              'Brightness',
-              '${(entry.brightness ?? 0).toStringAsFixed(0)}',
-              Icons.light_mode,
-            ),
-            _buildStatItem(
-              'BPM',
-              '${(entry.bpm ?? 0).toStringAsFixed(0)}',
-              Icons.speed,
-            ),
-            _buildStatItem(
-              'Notes',
-              '${entry.detectedNotes?.length ?? 0}',
-              Icons.music_note,
-            ),
-          ],
+        _buildStatItem(
+          'Detected',
+          '${snapshot.detectedNotes?.length ?? 0}',
+          Icons.music_note,
         ),
       ],
     );
   }
+
 
   Widget _buildStatItem(String label, String value, IconData icon) {
     return Expanded(
@@ -1468,6 +1579,11 @@ class _PracticeSnapshot {
   final double? stability;
   final double? brightness;
   final double? bpm;
+  final List<String>? detectedNotes;
+  final List<String>? missingNotesAI;
+  final String? aiFeedback;
+  final String? notes; // Manual journal notes
+  final String? entryId; // ID of the source JournalEntry for edit/delete
   final String source;
 
   const _PracticeSnapshot({
@@ -1480,6 +1596,11 @@ class _PracticeSnapshot {
     required this.brightness,
     required this.bpm,
     required this.source,
+    this.detectedNotes,
+    this.missingNotesAI,
+    this.aiFeedback,
+    this.notes,
+    this.entryId,
   });
 
   Map<String, dynamic> toAnalysisMap() {
@@ -1492,6 +1613,8 @@ class _PracticeSnapshot {
       'stability': stability,
       'brightness': brightness,
       'bpm': bpm,
+      'missing_swaras': missingNotesAI,
+      'detected_swaras': detectedNotes,
       'source': source,
     };
   }
@@ -1524,3 +1647,76 @@ class _PracticeDashboardMetrics {
     required this.recentAverageAccuracy,
   });
 }
+
+/// Collapsible widget to display AI feedback text in a journal card
+class _AiFeedbackSection extends StatefulWidget {
+  final String feedback;
+
+  const _AiFeedbackSection({required this.feedback});
+
+  @override
+  State<_AiFeedbackSection> createState() => _AiFeedbackSectionState();
+}
+
+class _AiFeedbackSectionState extends State<_AiFeedbackSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Row(
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: 14,
+                color: Colors.deepPurple[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'AI Guru Feedback',
+                style: TextStyle(
+                  color: Colors.deepPurple[700],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                _expanded ? Icons.expand_less : Icons.expand_more,
+                size: 16,
+                color: Colors.deepPurple[400],
+              ),
+            ],
+          ),
+        ),
+        if (_expanded) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Colors.deepPurple.withOpacity(0.2),
+              ),
+            ),
+            child: Text(
+              widget.feedback,
+              style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+

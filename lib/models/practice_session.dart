@@ -16,8 +16,10 @@ class PracticeSession {
   final double? avgVolume;
   final double? bpm;
   final List<String>? detectedNotes;
+  final List<String>? missingNotesAI; // Simple swara name list from AI
   final double? brightness;
   final double? stability;
+  final String? aiFeedback; // Full AI textual feedback from Gemini
 
   PracticeSession({
     this.id,
@@ -36,8 +38,10 @@ class PracticeSession {
     this.avgVolume,
     this.bpm,
     this.detectedNotes,
+    this.missingNotesAI,
     this.brightness,
     this.stability,
+    this.aiFeedback,
   });
 
   Map<String, dynamic> toFirestore() {
@@ -57,8 +61,10 @@ class PracticeSession {
       'avgVolume': avgVolume,
       'bpm': bpm,
       'detectedNotes': detectedNotes,
+      'missingNotesAI': missingNotesAI,
       'brightness': brightness,
       'stability': stability,
+      'aiFeedback': aiFeedback,
       'createdAt': DateTime.now().toIso8601String(),
     };
   }
@@ -84,9 +90,15 @@ class PracticeSession {
       avgPitch: data['avgPitch']?.toDouble(),
       avgVolume: data['avgVolume']?.toDouble(),
       bpm: data['bpm']?.toDouble(),
-      detectedNotes: List<String>.from(data['detectedNotes'] ?? []),
+      detectedNotes: data['detectedNotes'] != null
+          ? List<String>.from(data['detectedNotes'])
+          : null,
+      missingNotesAI: data['missingNotesAI'] != null
+          ? List<String>.from(data['missingNotesAI'])
+          : null,
       brightness: data['brightness']?.toDouble(),
       stability: data['stability']?.toDouble(),
+      aiFeedback: data['aiFeedback'] as String?,
     );
   }
 }

@@ -606,10 +606,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return _DeleteAccountDialog(
-          appState: appState,
-          parentContext: context,
-        );
+        return _DeleteAccountDialog(appState: appState, parentContext: context);
       },
     );
   }
@@ -672,8 +669,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
       ),
       actions: [
         TextButton(
-          onPressed:
-              _isDeleting ? null : () => Navigator.of(context).pop(),
+          onPressed: _isDeleting ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
@@ -682,17 +678,16 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             backgroundColor: Colors.red.shade800,
             foregroundColor: Colors.white,
           ),
-          child:
-              _isDeleting
-                  ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                  : const Text('Delete'),
+          child: _isDeleting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Delete'),
         ),
       ],
     );

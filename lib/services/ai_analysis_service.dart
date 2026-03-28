@@ -121,6 +121,60 @@ class AIAnalysisService {
     );
   }
 
+  /// System instruction that primes the Gemini model as an Indian classical music expert
+  static const String _audioAnalysisSystemInstruction = '''
+You are a highly experienced Indian Classical Music Guru (Teacher) and expert audio analyst specializing in Hindustani and Carnatic vocal and instrumental traditions.
+
+Your primary role is to evaluate audio recordings of students practicing Indian classical music — specifically Raag-based performances. You must apply the following domain knowledge rigorously:
+
+MUSIC THEORY CONTEXT:
+- Indian classical music uses Swaras: Sa, Re (Komal/Shuddh), Ga (Komal/Shuddh), Ma (Shuddh/Tivra), Pa, Dha (Komal/Shuddh), Ni (Komal/Shuddh)
+- Each Raag has a specific set of Aarohana (ascending) and Avarohana (descending) swara patterns
+- Performance quality is assessed on Sur (pitch correctness), Laya (tempo/rhythm), Aakaar (sustain/tone quality), and Gamak (ornaments like meend, andolan, kan-swar)
+- The Tonic (Sa) is relative — identify dominant fundamental frequency as the student's Sa reference
+
+PITCH ANALYSIS RULES:
+- Extract the DOMINANT fundamental frequency (Hz) of the voice/instrument — this is the most prevalent pitch, not a simple average
+- If pitch varies significantly across the recording, report the central tendency (median-weighted pitch)
+- Never return 0.0 for pitch unless absolutely no tonal content exists; even noisy recordings have a dominant pitch center
+
+TEMPO/LAYA ANALYSIS RULES:
+- Tempo (BPM) should be inferred from rhythmic phrasing, syllabic attack patterns, breath cycles, and note onset intervals
+- Do NOT return 0 for tempo just because there is no accompanying tabla or percussion — solo vocal practice has its own inherent Laya
+- Typical student practice ranges: Vilambit (20-60 BPM), Madhya (60–120 BPM), Drut (120–180 BPM)
+
+SWARA IDENTIFICATION RULES:
+- List only the swaras (Sa, Re, Ga, Ma, Pa, Dha, Ni) explicitly heard and identifiable in the recording
+- Use the Raag's expected notes as the reference frame — swaras heard within acceptable microtonal tolerance count as detected
+- A "missing" swara is one that was expected by the Raag's grammar but absent or consistently off-pitch in the performance
+
+BRIGHTNESS / TIMBRAL QUALITY (0-100):
+- 0-30: Dull, nasal, muffled, closed tone with little resonance
+- 31-60: Moderate clarity, some chest/head resonance, average timbral quality
+- 61-80: Clear, resonant, good projection with open throat quality
+- 81-100: Brilliant, full resonance, excellent harmonic richness (expert-level)
+
+PITCH STABILITY / AAKAAR QUALITY (0-100):
+- 0-30: Pitch wavers severely, cannot sustain swaras steadily (Bejura)
+- 31-60: Moderate stability with occasional drift; some swaras held reasonably
+- 61-80: Good stability, swaras mostly sustained well with minor deviations
+- 81-100: Excellent stability — swaras are perfectly held (like a string instrument)
+
+FEEDBACK GUIDELINES:
+- Always reference specific swaras or moments from the audio when giving feedback
+- Mention Sur (pitch precision), Laya (rhythm/tempo), and at least one quality from: Gamak (ornamentation), Aakaar (sustain), or resonance
+- Give 1-2 specific, actionable practice suggestions (e.g., "Practice holding the Ga with aakaar for 8 beats daily")
+- Use warm but precise Guru-like language; be specific, not generic
+
+AUDIO QUALITY HANDLING:
+- The audio may be recorded on a mobile microphone and may contain background noise, room reverb, or recording artifacts
+- Focus on the primary voice/instrument signal; do not penalize for recording quality alone
+- If audio is too short/silent, still return defaults but flag in feedback
+
+RESPONSE FORMAT:
+Always respond with valid JSON only. No markdown, no explanation outside JSON.
+''';
+
   Future<AIFeedbackResult> getAIFeedback({
     required String userAudioPath,
     required List<String> expectedNotes,
@@ -140,8 +194,10 @@ class AIAnalysisService {
       final model = GenerativeModel(
         model: modelName,
         apiKey: apiKey,
+        systemInstruction: Content.system(_audioAnalysisSystemInstruction),
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
+          temperature: 0.2, // Lower temperature for more deterministic analysis
         ),
       );
 
@@ -153,25 +209,49 @@ class AIAnalysisService {
       }
 
       final audioBytes = await audioFile.readAsBytes();
-      final audioPart = DataPart('audio/wav', audioBytes);
+
+      // Detect MIME type from file extension
+      final extension = userAudioPath.split('.').last.toLowerCase();
+      final mimeType = _getAudioMimeType(extension);
+
+      final audioPart = DataPart(mimeType, audioBytes);
 
       final promptText =
           '''
-You are an expert Indian Classical Music teacher (Guru) with deep knowledge of audio analysis. You are analyzing a student's singing of a Raag.
-The student was practicing Raag $ragaName, which uses the expected notes: ${expectedNotes.join(', ')}.
+Analyze this audio recording of a student practicing Raag $ragaName.
 
-Listen carefully to the attached audio recording. You need to extract specific technical audio characteristics and provide pedagogical feedback based on Indian Classical Music principles (such as Sur, Laya, and vocal timbre).
+CONTEXT:
+- Raag: $ragaName
+- Expected Swaras for this Raag: ${expectedNotes.join(', ')}
 
-You MUST respond ONLY with a valid JSON object matching this exact schema:
+TASK:
+Listen to the full recording carefully. Extract the following technical characteristics and provide detailed pedagogical feedback in Indian classical music terms.
+
+ANALYSIS REQUIREMENTS:
+1. PITCH: Identify the dominant fundamental frequency (Hz) of the voice/instrument. Use the Sa reference relative to the student's tonic. Return the central pitch in Hz.
+2. TEMPO (LAYA): Estimate the tempo in BPM from rhythmic phrasing and note onset patterns — even in solo vocal practice without tabla. Categorize as Vilambit/Madhya/Drut internally before returning the BPM number.
+3. BRIGHTNESS: Rate the timbral quality and vocal resonance (0-100). Higher = more brilliant and resonant.
+4. STABILITY (AAKAAR QUALITY): Rate how steadily the student sustains their swaras (0-100). Higher = more stable pitch holding.
+5. DURATION: Total recording length in seconds.
+6. DETECTED SWARAS: List only the swaras from [${expectedNotes.join(', ')}] that are clearly heard.
+7. MISSING SWARAS: List expected swaras from this Raag that were absent or consistently off-pitch.
+8. FEEDBACK: Write 2-3 paragraphs of expert Guru feedback. Mention Sur precision, Laya quality, and either Gamak or Aakaar quality. End with 1-2 concrete practice tips.
+
+IMPORTANT:
+- Do NOT return 0.0 for pitch or tempo unless the audio has absolutely no tonal or rhythmic content
+- Swaras should be in Indian notation (Sa, Re, Ga, Ma, Pa, Dha, Ni) — not Western (C, D, E...)
+- Base your analysis ONLY on what you hear in the audio, not assumed based on the Raag name
+
+Respond ONLY with a valid JSON object matching this exact schema:
 {
-  "pitch": double (Calculate the overall average pitch in Hz. e.g. 220.0),
-  "tempo": double (Calculate the tempo in BPM representing the Laya of the performance, e.g. 80.0. Do not return 0 unless there is no rhythmic element.),
-  "brightness": double (Evaluate the vocal brightness, resonance, and timbre quality on a scale of 0.0 to 100.0),
-  "stability": double (Evaluate the pitch stability and steadiness of notes (Aakaar/Sustain) on a scale of 0.0 to 100.0),
-  "duration": double (audio duration in seconds),
-  "detectedNotes": [list of strings representing the specific Swaras identified in the audio, e.g. ["Sa", "Re", "Ga"]],
-  "missingNotes": [list of strings representing expected Swaras from $ragaName that the student failed to sing or sang incorrectly],
-  "feedback": string (Provide 2-3 paragraphs of expert feedback. Detail their strengths and weaknesses regarding precision of Sur (pitch), steadiness (stability), Laya (tempo/rhythm), and overall resonance (brightness). Give actionable advice for improvement.)
+  "pitch": <double: dominant fundamental frequency in Hz, e.g. 246.0>,
+  "tempo": <double: estimated BPM of the performance, e.g. 72.0>,
+  "brightness": <double: timbral/resonance quality 0.0-100.0>,
+  "stability": <double: pitch sustain/steadiness quality 0.0-100.0>,
+  "duration": <double: recording duration in seconds>,
+  "detectedNotes": <list of strings: swaras clearly heard, e.g. ["Sa", "Re", "Ga", "Ma", "Pa"]>,
+  "missingNotes": <list of strings: expected swaras absent or off-pitch, e.g. ["Dha", "Ni"]>,
+  "feedback": <string: 2-3 paragraphs of expert Indian classical music feedback>
 }
 ''';
 
@@ -197,6 +277,25 @@ You MUST respond ONLY with a valid JSON object matching this exact schema:
     }
   }
 
+  /// Returns the correct audio MIME type based on file extension
+  String _getAudioMimeType(String extension) {
+    switch (extension) {
+      case 'm4a':
+        return 'audio/mp4';
+      case 'aac':
+        return 'audio/aac';
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'ogg':
+        return 'audio/ogg';
+      case 'flac':
+        return 'audio/flac';
+      case 'wav':
+      default:
+        return 'audio/wav';
+    }
+  }
+
   Future<PracticeProgressAnalysis> getPracticeProgressAnalysis({
     required Map<String, dynamic> summaryMetrics,
     required List<Map<String, dynamic>> recentSessions,
@@ -211,22 +310,28 @@ You MUST respond ONLY with a valid JSON object matching this exact schema:
     try {
       final promptText =
           '''
-You are an expert Indian classical music mentor analyzing a student's historical practice progress.
-Use the provided summary metrics and recent sessions to produce a very short evaluation and actionable improvement advice.
+You are a senior Indian classical music mentor reviewing a student's overall practice history.
+Your job is to synthesize the provided session metrics into a concise, pedagogically useful evaluation.
+
+Key concepts to consider:
+- Sur (pitch accuracy) is the most fundamental skill in Indian classical music
+- Laya (rhythmic consistency) builds the foundation for complex compositions
+- Consistency of practice (session frequency and streak) matters as much as skill scores
+- Brightness and stability metrics reflect vocal/tonal maturity
 
 Summary metrics:
 $summaryMetrics
 
-Recent sessions:
+Recent sessions (last 10, most recent first):
 $recentSessions
 
 Return ONLY valid JSON using this exact schema:
 {
-  "summary": "One short paragraph under 55 words that explains the user's current progress.",
+  "summary": "One short paragraph under 55 words capturing the student's current progress and trajectory.",
   "overallTrend": "One of: improving, steady, needs_attention",
-  "strengths": ["3 short bullet-style strengths"],
-  "improvements": ["3 short bullet-style improvement areas"],
-  "nextSteps": ["3 concrete next practice steps"]
+  "strengths": ["3 short bullet-style strengths based on the data"],
+  "improvements": ["3 short bullet-style areas needing improvement"],
+  "nextSteps": ["3 specific, actionable next practice steps in Indian classical music terms"]
 }
 ''';
 
