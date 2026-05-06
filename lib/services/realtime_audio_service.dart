@@ -19,8 +19,10 @@ class RealtimeAudioService {
   final FlutterAudioCapture _audioCapture = FlutterAudioCapture();
 
   // Analysis components
-  late final FFT _fft;
+  FFT? _fft;
+  bool _initialized = false;
   bool _isAnalyzing = false;
+  bool _externalSourceMode = false;
 
   // Real-time data streams
   final StreamController<RealtimeAudioData> _dataController =
@@ -33,7 +35,7 @@ class RealtimeAudioService {
   // Audio processing parameters
   static const int _sampleRate = 44100;
   static const int _windowSize = 2048;
-  static const int _bufferSize = 4096;
+  static const int _bufferSize = 44100; // Increased to 1 second of audio
 
   // Audio buffer for analysis
   final List<double> _audioBuffer = [];
@@ -51,16 +53,61 @@ class RealtimeAudioService {
 
   bool get isAnalyzing => _isAnalyzing;
 
-  /// Initialize the real-time audio service
+  /// Initialize the real-time audio service. Idempotent — safe to call
+  /// from multiple screens / multiple times.
   Future<void> initialize() async {
+    if (_initialized) return;
     try {
       _fft = FFT(_windowSize);
-
+      _initialized = true;
       debugPrint('✅ RealtimeAudioService initialized successfully');
     } catch (e) {
       debugPrint('❌ Error initializing RealtimeAudioService: $e');
       throw Exception('Failed to initialize real-time audio service: $e');
     }
+  }
+
+  /// Begin emitting analysis events from samples that the caller will push
+  /// in via [feedSamples]. Use this when something else owns the microphone
+  /// (e.g. a file recorder running [Record.startStream]) — avoids two
+  /// platform mic clients fighting over the same input.
+  Future<void> startExternalAnalysis() async {
+    if (_isAnalyzing) return;
+    if (!_initialized) await initialize();
+    _isAnalyzing = true;
+    _externalSourceMode = true;
+    _audioBuffer.clear();
+    _pitchHistory.clear();
+    _volumeHistory.clear();
+    _tempoHistory.clear();
+    _recentPitches.clear();
+    _startPeriodicAnalysis();
+    debugPrint('✅ External-source analysis started');
+  }
+
+  /// Stop an external-source analysis session started via
+  /// [startExternalAnalysis]. The caller is responsible for stopping its
+  /// own audio source.
+  Future<void> stopExternalAnalysis() async {
+    if (!_isAnalyzing || !_externalSourceMode) return;
+    _isAnalyzing = false;
+    _externalSourceMode = false;
+    _analysisTimer?.cancel();
+    _analysisTimer = null;
+    _audioBuffer.clear();
+    _pitchHistory.clear();
+    _volumeHistory.clear();
+    _tempoHistory.clear();
+    _recentPitches.clear();
+    debugPrint('🛑 External-source analysis stopped');
+  }
+
+  /// Push a chunk of float audio samples (range ~[-1, 1]) into the analysis
+  /// pipeline. No-op if analysis is not currently running.
+  void feedSamples(Float32List samples) {
+    if (!_isAnalyzing) return;
+    debugPrint('📥 feedSamples: ${samples.length} samples, _isAnalyzing=$_isAnalyzing, bufLen=${_audioBuffer.length}');
+    _onAudioDataFloat32(samples);
   }
 
   /// Start real-time audio analysis with microphone capture
@@ -75,6 +122,7 @@ class RealtimeAudioService {
       _pitchHistory.clear();
       _volumeHistory.clear();
       _tempoHistory.clear();
+      _recentPitches.clear();
 
       debugPrint('🎤 Starting microphone capture...');
 
@@ -116,6 +164,7 @@ class RealtimeAudioService {
       _pitchHistory.clear();
       _volumeHistory.clear();
       _tempoHistory.clear();
+      _recentPitches.clear();
 
       debugPrint('🛑 Real-time audio analysis stopped');
     } catch (e) {
@@ -134,19 +183,13 @@ class RealtimeAudioService {
       // Add to buffer
       _audioBuffer.addAll(samples);
 
-      // Keep buffer size manageable
-      if (_audioBuffer.length > _bufferSize * 2) {
-        final excess = _audioBuffer.length - _bufferSize;
-        _audioBuffer.removeRange(0, excess);
+      // Keep buffer size manageable (1 second)
+      if (_audioBuffer.length > _bufferSize) {
+        _audioBuffer.removeRange(0, _audioBuffer.length - _bufferSize);
       }
 
       // Send waveform data for visualization
-      if (_audioBuffer.length >= _windowSize) {
-        final waveformData = _audioBuffer.sublist(
-          math.max(0, _audioBuffer.length - _windowSize),
-        );
-        _waveformController.add(List.from(waveformData));
-      }
+      _waveformController.add(samples);
     } catch (e) {
       debugPrint('❌ Error processing audio data: $e');
     }
@@ -179,16 +222,16 @@ class RealtimeAudioService {
     if (_audioBuffer.length < _windowSize) return;
 
     try {
-      // Get the most recent audio window
-      final window = _audioBuffer.sublist(
+      // 1. Get the most recent audio window (RAW samples for pitch detection)
+      final windowRaw = _audioBuffer.sublist(
         math.max(0, _audioBuffer.length - _windowSize),
       );
 
-      // Apply window function
-      final windowedSamples = _applyHammingWindow(window);
+      // 2. Apply window function for spectral analysis
+      final windowedSamples = _applyHammingWindow(windowRaw);
 
-      // Perform analysis
-      final analysisData = _analyzeAudioWindow(windowedSamples);
+      // 3. Perform analysis
+      final analysisData = _analyzeAudioWindow(windowRaw, windowedSamples);
 
       // Update history for tempo calculation
       _updateHistory(analysisData);
@@ -199,6 +242,8 @@ class RealtimeAudioService {
       // Send data to listeners
       _dataController.add(enhancedData);
 
+      debugPrint('📊 Analysis: pitch=${enhancedData.pitch.toStringAsFixed(1)} Hz, vol=${enhancedData.volume.toStringAsFixed(4)}, notes=${enhancedData.notes}');
+
       // Send spectrum data for visualization
       _spectrumController.add(enhancedData.spectrum);
     } catch (e) {
@@ -206,18 +251,23 @@ class RealtimeAudioService {
     }
   }
 
-  /// Analyze a single audio window
-  RealtimeAudioData _analyzeAudioWindow(List<double> samples) {
+  /// Analyze a single audio window.
+  /// [rawSamples] is used for pitch detection (more accurate).
+  /// [windowedSamples] is used for spectral analysis.
+  RealtimeAudioData _analyzeAudioWindow(
+    List<double> rawSamples,
+    List<double> windowedSamples,
+  ) {
     // Calculate basic metrics
-    final pitch = _calculatePitch(samples);
-    final volume = _calculateVolume(samples);
-    final spectrum = _calculateSpectrum(samples);
+    final pitch = _calculatePitch(rawSamples);
+    final volume = _calculateVolume(rawSamples);
+    final spectrum = _calculateSpectrum(windowedSamples);
 
     // Detect notes
     final notes = _detectNotes(pitch, spectrum);
 
     // Calculate quality metrics
-    final quality = _calculateAudioQuality(samples, spectrum);
+    final quality = _calculateAudioQuality(rawSamples, spectrum);
     final brightness = _calculateBrightness(spectrum);
 
     return RealtimeAudioData(
@@ -229,7 +279,7 @@ class RealtimeAudioService {
       quality: quality,
       brightness: brightness,
       tempo: 0.0, // Will be calculated in enhancement step
-      waveform: samples.length > 100 ? samples.sublist(0, 100) : samples,
+      waveform: rawSamples.length > 100 ? rawSamples.sublist(0, 100) : rawSamples,
     );
   }
 
@@ -309,42 +359,133 @@ class RealtimeAudioService {
     return windowed;
   }
 
-  /// Calculate pitch using autocorrelation
+  /// ──────────────────────────────────────────────────────────────────────────
+  /// YIN pitch detection algorithm — the gold standard for monophonic voice.
+  ///
+  /// Why the previous approaches failed:
+  ///  • Raw FFT peak: 21 Hz bin resolution → always snaps to the same bin
+  ///    → constant flat line.
+  ///  • Raw autocorrelation max-peak: often picks a harmonic (2× or 3×)
+  ///    instead of the fundamental → wrong frequency or constant.
+  ///
+  /// YIN works differently:
+  ///  1. Computes a *difference function* d(τ) between the signal and a
+  ///     shifted copy of itself.
+  ///  2. Normalises it cumulatively (CMND) so that the first reliable dip
+  ///     below a threshold is the fundamental period, not a harmonic.
+  ///  3. Parabolic interpolation gives sub-sample accuracy (~1 Hz).
+  /// ──────────────────────────────────────────────────────────────────────────
+
+  // Small history buffer for median smoothing (removes jitter)
+  final List<double> _recentPitches = [];
+  static const int _pitchMedianWindow = 5;
+
   double _calculatePitch(List<double> samples) {
-    if (samples.length < 1024) return 0.0;
+    if (samples.length < _windowSize) return 0.0;
 
-    final autocorr = _autocorrelation(samples.take(1024).toList());
+    final rms = _calculateVolume(samples);
+    if (rms < 0.005) return 0.0; // silence gate
 
-    double maxValue = 0.0;
-    int peakIndex = 0;
+    final raw = _yinPitch(samples);
 
-    // Find the highest peak after the zero lag
-    for (int i = 20; i < autocorr.length ~/ 2; i++) {
-      if (autocorr[i] > maxValue) {
-        maxValue = autocorr[i];
-        peakIndex = i;
-      }
+    // Median-of-N smoothing to remove single-frame outliers
+    if (raw > 0) {
+      _recentPitches.add(raw);
+    } else {
+      _recentPitches.add(0.0);
+    }
+    if (_recentPitches.length > _pitchMedianWindow) {
+      _recentPitches.removeAt(0);
     }
 
-    // Convert to frequency
-    return peakIndex > 0 ? _sampleRate / peakIndex : 0.0;
+    // Return the median of recent values
+    final sorted = List<double>.from(_recentPitches)..sort();
+    final median = sorted[sorted.length ~/ 2];
+
+    return (median > 60 && median < 1200) ? median : 0.0;
   }
 
-  /// Calculate autocorrelation
-  List<double> _autocorrelation(List<double> samples) {
-    final n = samples.length;
-    final autocorr = List<double>.filled(n, 0.0);
+  /// Core YIN algorithm on [samples].
+  double _yinPitch(List<double> samples) {
+    // Use the most recent _windowSize samples
+    final buf = samples.length > _windowSize
+        ? samples.sublist(samples.length - _windowSize)
+        : samples;
+    final W = buf.length;
+    final halfW = W ~/ 2;
 
-    for (int lag = 0; lag < n; lag++) {
+    // ── Step 1: Difference function ──
+    // d(τ) = Σ_{j=0}^{W/2-1} (buf[j] - buf[j+τ])²
+    final diff = List<double>.filled(halfW, 0.0);
+    for (int tau = 1; tau < halfW; tau++) {
       double sum = 0.0;
-      for (int i = 0; i < n - lag; i++) {
-        sum += samples[i] * samples[i + lag];
+      for (int j = 0; j < halfW; j++) {
+        final delta = buf[j] - buf[j + tau];
+        sum += delta * delta;
       }
-      autocorr[lag] = sum / (n - lag);
+      diff[tau] = sum;
     }
 
-    return autocorr;
+    // ── Step 2: Cumulative Mean Normalized Difference (CMND) ──
+    // d'(τ) = d(τ) / ( (1/τ) Σ_{j=1}^{τ} d(j) )
+    // d'(0) = 1 by convention
+    final cmnd = List<double>.filled(halfW, 1.0);
+    double runningSum = 0.0;
+    for (int tau = 1; tau < halfW; tau++) {
+      runningSum += diff[tau];
+      cmnd[tau] = runningSum > 0 ? (diff[tau] * tau / runningSum) : 1.0;
+    }
+
+    // ── Step 3: Absolute threshold ──
+    // Find the *first* tau where cmnd dips below the threshold.
+    // This preferentially finds the fundamental, not a harmonic.
+    const double yinThreshold = 0.20;
+    // Lag range: sampleRate/maxHz .. sampleRate/minHz
+    final minLag = (_sampleRate / 1000).round().clamp(2, halfW - 1); // ~44
+    final maxLag = (_sampleRate / 70).round().clamp(minLag + 1, halfW - 1); // ~630
+
+    int bestTau = -1;
+    for (int tau = minLag; tau < maxLag; tau++) {
+      if (cmnd[tau] < yinThreshold) {
+        // Walk forward to the local minimum of the dip
+        while (tau + 1 < maxLag && cmnd[tau + 1] < cmnd[tau]) {
+          tau++;
+        }
+        bestTau = tau;
+        break;
+      }
+    }
+
+    // If no dip was found below threshold, try the global minimum in range
+    if (bestTau < 0) {
+      double minVal = 2.0;
+      for (int tau = minLag; tau < maxLag; tau++) {
+        if (cmnd[tau] < minVal) {
+          minVal = cmnd[tau];
+          bestTau = tau;
+        }
+      }
+      // Only accept if the global min is reasonably low
+      if (minVal > 0.45) return 0.0;
+    }
+
+    if (bestTau <= 0) return 0.0;
+
+    // ── Step 4: Parabolic interpolation ──
+    double refinedTau = bestTau.toDouble();
+    if (bestTau > 1 && bestTau < halfW - 1) {
+      final a = cmnd[bestTau - 1];
+      final b = cmnd[bestTau];
+      final c = cmnd[bestTau + 1];
+      final denom = 2.0 * (2.0 * b - a - c);
+      if (denom.abs() > 1e-10) {
+        refinedTau = bestTau + (a - c) / denom;
+      }
+    }
+
+    return _sampleRate / refinedTau;
   }
+
 
   /// Calculate RMS volume
   double _calculateVolume(List<double> samples) {
@@ -363,8 +504,10 @@ class RealtimeAudioService {
     if (samples.length < _windowSize) return [];
 
     try {
+      final fft = _fft;
+      if (fft == null) return [];
       final windowed = samples.take(_windowSize).toList();
-      final fftResult = _fft.realFft(windowed);
+      final fftResult = fft.realFft(windowed);
 
       // Calculate magnitude spectrum
       final spectrum = <double>[];

@@ -17,19 +17,20 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   late Animation<Offset> _slideAnimation;
 
   static final List<RagaData> _ragaDatabase = [
-    // Beginner Ragas
-    // RagaData(
-    //   name: 'Raag Yaman',
-    //   level: 'Beginner',
-    //   description: 'A beautiful evening raga with a peaceful and romantic mood',
-    //   notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
-    //   aarohAudioPath: 'assets/audio/Bhoopali_Aaroh.wav',
-    //   avrohAudioPath: 'assets/audio/Bhoopali_Aaroh.wav',
-    //   swarmalikaAudioPath: 'assets/audio/yaman_swarmalika.mp3',
-    // ),
+    // Beginner Ragas — Bilawal first (suddh major scale, easiest entry point).
+    RagaData(
+      name: 'Raag Bilawal',
+      level: 'Beginner',
+      description:
+          'The shuddh (natural) scale — the simplest starting point with all suddh notes',
+      notes: ['Sa', 'Re', 'Ga', 'Ma', 'Pa', 'Dha', 'Ni'],
+      aarohAudioPath: 'assets/audio/raag_bilawal_aaroh.mp4',
+      avrohAudioPath: 'assets/audio/raag_bilawal_avroh.mp4',
+      swarmalikaAudioPath: 'assets/audio/bilawal_swarmalika.mp3',
+    ),
     RagaData(
       name: 'Raag Bhoopali',
-      level: 'Beginner',
+      level: 'Intermediate',
       description: 'A pentatonic raga with a joyful and uplifting character',
       notes: ['Sa', 'Re', 'Ga', 'Pa', 'Dha'],
       aarohAudioPath: 'assets/audio/raag_bhoopali_aaroh.wav',

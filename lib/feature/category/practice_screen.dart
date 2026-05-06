@@ -11,21 +11,36 @@ import '../../models/audio_characteristics.dart';
 import '../../models/raag_entry.dart';
 import '../../models/practice_session.dart';
 import '../../models/journal_entry.dart';
+import '../../models/alankar.dart';
+import '../../models/ai_feedback_result.dart';
+import '../../services/tone_synth_service.dart';
+import '../../services/realtime_audio_service.dart';
+import '../../widgets/sing_along_graph.dart';
+import '../../widgets/user_voice_waveform.dart';
+import '../../widgets/pitch_graph.dart';
 import 'real_time_audio_analysis.dart';
 import 'audio_characteristics_display.dart';
-import '../../models/ai_feedback_result.dart';
 
 class PracticeScreen extends StatefulWidget {
   final RagaData ragaData;
   final String practiceType;
   final String audioPath;
 
+  /// When non-null, the screen runs in Alankar mode: reference audio is
+  /// synthesized from the alankar's sargam pattern at the chosen tempo and
+  /// transpose, and the sing-along graph drives off that pattern instead of
+  /// the raga's audio file.
+  final Alankar? alankar;
+
   const PracticeScreen({
     super.key,
     required this.ragaData,
     required this.practiceType,
     required this.audioPath,
+    this.alankar,
   });
+
+  bool get isAlankar => alankar != null;
 
   @override
   State<PracticeScreen> createState() => _PracticeScreenState();
@@ -35,6 +50,8 @@ class _PracticeScreenState extends State<PracticeScreen>
     with TickerProviderStateMixin {
   final AudioService _audioService = AudioService();
   final AudioAnalysisService _analysisService = AudioAnalysisService();
+  final ToneSynthService _toneSynth = ToneSynthService();
+  final RealtimeAudioService _realtimeAudio = RealtimeAudioService();
 
   bool _isAnalyzing = false;
   AudioFeedback? _lastFeedback;
@@ -44,6 +61,12 @@ class _PracticeScreenState extends State<PracticeScreen>
   bool _showCharacteristicsDisplay = false;
   String? _recordedAudioPath;
   bool _hasRecording = false;
+
+  // Sing-along graph state.
+  int _transpose = 0;        // 0..5 semitones up
+  int _bpm = 80;             // 80 or 100 for now
+  TargetTrack? _targetTrack;
+  bool _showSingAlong = false;
 
   int _selectedAnalysisTab = 0; // 0 for Algorithmic, 1 for AI
   AIFeedbackResult? _aiFeedback;
@@ -65,6 +88,7 @@ class _PracticeScreenState extends State<PracticeScreen>
     );
     _pulseController.repeat(reverse: true);
     _analysisService.initialize();
+    _realtimeAudio.initialize();
     _requestPermissions();
   }
 
@@ -72,8 +96,20 @@ class _PracticeScreenState extends State<PracticeScreen>
   void dispose() {
     if (mounted) {
       _pulseController.dispose();
+      
+      // Stop any active recording so the mic is freed and state is reset
+      // for the next time the user visits this screen.
+      if (_audioService.isRecording) {
+        // ignore: discarded_futures
+        _audioService.stopRecording();
+      }
+      
       // Do not dispose audio service as it is a singleton and needed for future playback
       _audioService.stopAudio();
+      _toneSynth.stop();
+      // External-mode analysis is owned by AudioService.stopRecording();
+      // calling stopExternalAnalysis here is a no-op safety net.
+      _realtimeAudio.stopExternalAnalysis();
       _analysisService.dispose();
     }
     super.dispose();
@@ -164,7 +200,24 @@ class _PracticeScreenState extends State<PracticeScreen>
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Transpose + tempo controls
+            _buildScaleAndTempoControls(),
+
+            const SizedBox(height: 16),
+
+            // Live pitch graph (shown while recording).
+            // Shows target notes as orange bars and the user's real-time
+            // pitch as a smooth Bezier curve with note labels on the Y-axis.
+            if (_showSingAlong && _targetTrack != null) ...[
+              PitchGraph(
+                target: _targetTrack!,
+                liveStream: _realtimeAudio.dataStream,
+                waveformStream: _realtimeAudio.waveformStream,
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // Real-time audio analysis section
             if (_showRealTimeAnalysis) ...[
@@ -455,6 +508,134 @@ class _PracticeScreenState extends State<PracticeScreen>
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+
+  Widget _buildScaleAndTempoControls() {
+    final isRecording = _audioService.isRecording;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.tune, color: Colors.deepPurpleAccent, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Scale (Transpose)',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const Spacer(),
+              Text(
+                _transpose == 0 ? 'Original' : '+$_transpose semitones',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(6, (i) {
+              final selected = _transpose == i;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: isRecording
+                      ? null
+                      : () => setState(() {
+                            _transpose = i;
+                            _targetTrack = null; // force rebuild on next play
+                          }),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? Colors.deepPurpleAccent
+                          : Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: selected
+                            ? Colors.deepPurpleAccent
+                            : Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                    child: Text(
+                      'T$i',
+                      style: TextStyle(
+                        color: selected ? Colors.white : Colors.white70,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.speed, color: Colors.deepPurpleAccent, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Tempo',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const Spacer(),
+              Text(
+                '$_bpm BPM',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [80, 100].map((bpm) {
+              final selected = _bpm == bpm;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: isRecording
+                      ? null
+                      : () => setState(() {
+                            _bpm = bpm;
+                            _targetTrack = null;
+                          }),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? Colors.deepPurpleAccent
+                          : Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: selected
+                            ? Colors.deepPurpleAccent
+                            : Colors.white.withOpacity(0.1),
+                      ),
+                    ),
+                    child: Text(
+                      '$bpm BPM',
+                      style: TextStyle(
+                        color: selected ? Colors.white : Colors.white70,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -953,10 +1134,13 @@ class _PracticeScreenState extends State<PracticeScreen>
       final recordingPath = await _audioService.stopRecording();
       _pulseController.stop();
       _practiceStopwatch.stop();
+      // Real-time analysis is stopped inside _audioService.stopRecording()
+      // because the recorder owns the mic stream. No-op here.
 
       setState(() {
         _recordedAudioPath = recordingPath;
         _hasRecording = recordingPath != null;
+        _showSingAlong = false;
         // Clear previous analysis when new recording is made
         _lastFeedback = null;
         _userCharacteristics = null;
@@ -986,14 +1170,36 @@ class _PracticeScreenState extends State<PracticeScreen>
         _userCharacteristics = null;
       });
 
+      // Tokens that drive the graph target bars.
+      final tokens = widget.isAlankar
+          ? withDescendingMirror(widget.alankar!.pattern)
+          : widget.ragaData.notes;
+
+      // Build the target track for the graph WITHOUT playing audio.
+      // Previously, playPattern() was used here which played synthesized
+      // piano notes through the speaker. On iOS, this triggers the system's
+      // echo cancellation which suppresses the microphone input to near-zero,
+      // making pitch detection impossible.
+      final track = _toneSynth.buildTrack(
+        tokens: tokens,
+        bpm: _bpm,
+        transposeSemitones: _transpose,
+      );
+
+      // Start recording AFTER building the track (mic-only, no playback).
       await _audioService.startRecording();
+
       _pulseController.repeat(reverse: true);
       _practiceStopwatch.reset();
       _practiceStopwatch.start();
 
-      setState(() {});
+      setState(() {
+        _targetTrack = track;
+        _showSingAlong = true;
+      });
     }
   }
+
 
   void _analyzeAudio() async {
     // Check if user has recorded audio
@@ -1391,11 +1597,37 @@ class _PracticeScreenState extends State<PracticeScreen>
   }
 
   Future<void> _playReferenceAudio() async {
-    await _audioService.playAudio(
-      widget.audioPath,
-      ragaName: widget.ragaData.name,
-      practiceType: widget.practiceType,
-    );
+    if (widget.isAlankar) {
+      final tokens = withDescendingMirror(widget.alankar!.pattern);
+      final track = await _toneSynth.playPattern(
+        tokens: tokens,
+        bpm: _bpm,
+        transposeSemitones: _transpose,
+      );
+      setState(() {
+        _targetTrack = track;
+      });
+    } else {
+      await _audioService.playAudio(
+        widget.audioPath,
+        ragaName: widget.ragaData.name,
+        practiceType: widget.practiceType,
+        transposeSemitones: _transpose,
+        // Map BPM selection to a playback speed multiplier; 80 BPM is
+        // treated as the asset's natural pace (matches the default selection).
+        speed: _bpm / 80.0,
+      );
+      // For raga aaroh/avroh, derive a target track from the raga notes at the
+      // chosen BPM. This is a simple grid-based fallback; a future improvement
+      // could pitch-detect the actual reference asset.
+      setState(() {
+        _targetTrack = _toneSynth.buildTrack(
+          tokens: widget.ragaData.notes,
+          bpm: _bpm,
+          transposeSemitones: _transpose,
+        );
+      });
+    }
     setState(() {});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1415,6 +1647,7 @@ class _PracticeScreenState extends State<PracticeScreen>
 
   Future<void> _stopReferenceAudio() async {
     await _audioService.stopAudio();
+    await _toneSynth.stop();
     setState(() {});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/raag_entry.dart';
+import 'alankar_list_screen.dart';
 import 'practice_screen.dart';
 
 class RagaPracticeOptionsScreen extends StatelessWidget {
@@ -104,20 +105,72 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
                     'Avroh',
                     ragaData.avrohAudioPath,
                   ),
-                  // const SizedBox(height: 16),
-                  // _practiceOptionTile(
-                  //   context,
-                  //   'Practice Swarmalika',
-                  //   'Melody practice with lyrics and feedback',
-                  //   Icons.lyrics,
-                  //   Colors.orange,
-                  //   'Swarmalika',
-                  //   ragaData.swarmalikaAudioPath,
-                  // ),
+                  const SizedBox(height: 16),
+                  _alankarTile(context),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _alankarTile(BuildContext context) {
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AlankarListScreen(ragaData: ragaData),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Icon(
+                  Icons.graphic_eq,
+                  color: Colors.orange,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Practice Alankars',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '10 simple alankars with sing-along graph at your tempo and scale',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 20),
+            ],
+          ),
         ),
       ),
     );

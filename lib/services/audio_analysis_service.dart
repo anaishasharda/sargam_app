@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:record/record.dart';
 import 'package:fftea/fftea.dart';
 // import 'package:flutter_pitch_detection/flutter_pitch_detection.dart'; // Will be used in future updates
@@ -1251,30 +1251,32 @@ class AudioAnalysisService {
       final file = File(_currentRecordingPath!);
       if (!await file.exists()) return [];
 
-      final bytes = await file.readAsBytes();
-      // Need at least header + some data
-      if (bytes.length < 44 + _windowSize * 2) return [];
+      final length = await file.length();
+      // Need at least header (44 bytes) + some data
+      if (length < 44 + _windowSize * 2) return [];
 
-      // Read the most recent window size of data
-      // 2 bytes per sample for 16-bit mono
-      final bytesToRead = _windowSize * 2;
-      final startIndex = math.max(44, bytes.length - bytesToRead);
-
-      // Ensure we start on an even byte index for 16-bit
-      final adjustedStartIndex = startIndex % 2 != 0
-          ? startIndex - 1
-          : startIndex;
-
-      final recentBytes = bytes.sublist(math.max(44, adjustedStartIndex));
-
-      final samples = <double>[];
-      for (int i = 0; i < recentBytes.length - 1; i += 2) {
-        int sample = recentBytes[i] | (recentBytes[i + 1] << 8);
-        if (sample >= 32768) sample -= 65536;
-        samples.add(sample / 32768.0);
+      // Open file for random access to read only the tail
+      final raf = await file.open(mode: FileMode.read);
+      try {
+        final bytesToRead = _windowSize * 2;
+        final startPos = math.max(44, length - bytesToRead);
+        
+        // Ensure we start on an even byte index for 16-bit PCM
+        final adjustedStartPos = (startPos - 44) % 2 != 0 ? startPos - 1 : startPos;
+        
+        await raf.setPosition(math.max(44, adjustedStartPos));
+        final recentBytes = await raf.read(bytesToRead);
+        
+        final samples = <double>[];
+        for (int i = 0; i < recentBytes.length - 1; i += 2) {
+          int sample = recentBytes[i] | (recentBytes[i + 1] << 8);
+          if (sample >= 32768) sample -= 65536;
+          samples.add(sample / 32768.0);
+        }
+        return samples;
+      } finally {
+        await raf.close();
       }
-
-      return samples;
     } catch (e) {
       print('Error reading recent audio data: $e');
       return [];
