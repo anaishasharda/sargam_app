@@ -11,6 +11,9 @@ class UserProfile {
   final double averagePitchAccuracy;
   final int totalSessions;
   final DateTime lastPracticeDate;
+  final double? baseSaHz;
+  final DateTime? saCalibratedAt;
+  final String? saConfidence;
 
   UserProfile({
     this.id,
@@ -25,6 +28,9 @@ class UserProfile {
     this.averagePitchAccuracy = 0.0,
     this.totalSessions = 0,
     DateTime? lastPracticeDate,
+    this.baseSaHz,
+    this.saCalibratedAt,
+    this.saConfidence,
   }) : joinedDate = joinedDate ?? DateTime.now(),
        ragaPracticeCount = ragaPracticeCount ?? {},
        lastPracticeDate = lastPracticeDate ?? DateTime.now();
@@ -42,6 +48,9 @@ class UserProfile {
       'averagePitchAccuracy': averagePitchAccuracy,
       'totalSessions': totalSessions,
       'lastPracticeDate': lastPracticeDate.toIso8601String(),
+      'baseSaHz': baseSaHz,
+      'saCalibratedAt': saCalibratedAt?.toIso8601String(),
+      'saConfidence': saConfidence,
       'updatedAt': DateTime.now().toIso8601String(),
     };
   }
@@ -60,6 +69,11 @@ class UserProfile {
       averagePitchAccuracy: (data['averagePitchAccuracy'] ?? 0.0).toDouble(),
       totalSessions: data['totalSessions'] ?? 0,
       lastPracticeDate: DateTime.parse(data['lastPracticeDate']),
+      baseSaHz: (data['baseSaHz'] as num?)?.toDouble(),
+      saCalibratedAt: data['saCalibratedAt'] != null
+          ? DateTime.parse(data['saCalibratedAt'])
+          : null,
+      saConfidence: data['saConfidence'],
     );
   }
 
@@ -76,6 +90,9 @@ class UserProfile {
     double? averagePitchAccuracy,
     int? totalSessions,
     DateTime? lastPracticeDate,
+    double? baseSaHz,
+    DateTime? saCalibratedAt,
+    String? saConfidence,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -90,6 +107,9 @@ class UserProfile {
       averagePitchAccuracy: averagePitchAccuracy ?? this.averagePitchAccuracy,
       totalSessions: totalSessions ?? this.totalSessions,
       lastPracticeDate: lastPracticeDate ?? this.lastPracticeDate,
+      baseSaHz: baseSaHz ?? this.baseSaHz,
+      saCalibratedAt: saCalibratedAt ?? this.saCalibratedAt,
+      saConfidence: saConfidence ?? this.saConfidence,
     );
   }
 }
