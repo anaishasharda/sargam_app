@@ -56,15 +56,15 @@ class _AudioCharacteristicsDisplayState
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.deepPurpleAccent.withOpacity(0.1),
-            Colors.purpleAccent.withOpacity(0.05),
+            Colors.deepPurpleAccent.withValues(alpha: 0.1),
+            Colors.purpleAccent.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.deepPurpleAccent.withOpacity(0.3),
+          color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -135,20 +135,20 @@ class _AudioCharacteristicsDisplayState
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? Colors.deepPurpleAccent.withOpacity(0.2)
+              ? Colors.deepPurpleAccent.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? Colors.deepPurpleAccent
-                : Colors.white.withOpacity(0.3),
+                : Colors.white.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white.withOpacity(0.7),
+            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.7),
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -232,7 +232,7 @@ class _AudioCharacteristicsDisplayState
               ),
               _buildCharacteristicCard(
                 'Brightness',
-                '${characteristics.spectralCentroid.toStringAsFixed(1)}',
+                characteristics.spectralCentroid.toStringAsFixed(1),
                 Icons.wb_sunny,
                 Colors.amber,
                 _getBrightnessDescription(characteristics.spectralCentroid),
@@ -332,9 +332,9 @@ class _AudioCharacteristicsDisplayState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -372,7 +372,7 @@ class _AudioCharacteristicsDisplayState
           Text(
             description,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 12,
             ),
           ),
@@ -385,9 +385,9 @@ class _AudioCharacteristicsDisplayState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -425,9 +425,9 @@ class _AudioCharacteristicsDisplayState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.purple.withOpacity(0.2),
+        color: Colors.purple.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.purple.withOpacity(0.5)),
+        border: Border.all(color: Colors.purple.withValues(alpha: 0.5)),
       ),
       child: Text(
         note,
@@ -444,9 +444,9 @@ class _AudioCharacteristicsDisplayState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -474,13 +474,13 @@ class _AudioCharacteristicsDisplayState
               Expanded(
                 child: _buildInfoItem(
                   'Spectral Centroid',
-                  '${characteristics.spectralCentroid.toStringAsFixed(1)}',
+                  characteristics.spectralCentroid.toStringAsFixed(1),
                 ),
               ),
               Expanded(
                 child: _buildInfoItem(
                   'Zero Crossing Rate',
-                  '${characteristics.zeroCrossingRate.toStringAsFixed(3)}',
+                  characteristics.zeroCrossingRate.toStringAsFixed(3),
                 ),
               ),
             ],
@@ -496,7 +496,7 @@ class _AudioCharacteristicsDisplayState
       children: [
         Text(
           label,
-          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(
@@ -517,9 +517,9 @@ class _AudioCharacteristicsDisplayState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -576,9 +576,9 @@ class _AudioCharacteristicsDisplayState
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -594,7 +594,7 @@ class _AudioCharacteristicsDisplayState
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 12,
             ),
           ),
@@ -634,9 +634,9 @@ class _AudioCharacteristicsDisplayState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -699,7 +699,7 @@ class _AudioCharacteristicsDisplayState
                   return Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.3),
+                      color: color.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Align(
@@ -721,7 +721,7 @@ class _AudioCharacteristicsDisplayState
         const SizedBox(height: 8),
         Text(
           '${value.toStringAsFixed(1)} $label',
-          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
           textAlign: TextAlign.center,
         ),
       ],
@@ -810,7 +810,7 @@ class SpectrumPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final fillPaint = Paint()
-      ..color = Colors.deepPurpleAccent.withOpacity(0.3)
+      ..color = Colors.deepPurpleAccent.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
 
     final path = Path();

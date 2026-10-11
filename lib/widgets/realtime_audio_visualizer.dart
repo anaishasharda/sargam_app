@@ -193,8 +193,8 @@ class _RealtimeAudioVisualizerState extends State<RealtimeAudioVisualizer>
                     boxShadow: _isRecording
                         ? [
                             BoxShadow(
-                              color: Colors.red.withOpacity(
-                                0.3 * _pulseController.value,
+                              color: Colors.red.withValues(
+                                alpha: 0.3 * _pulseController.value,
                               ),
                               blurRadius: 20 * _pulseController.value,
                               spreadRadius: 10 * _pulseController.value,

@@ -135,12 +135,12 @@ class _PitchGraphState extends State<PitchGraph>
           color: const Color(0xFF110A22),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.deepPurpleAccent.withOpacity(0.08),
+              color: Colors.deepPurpleAccent.withValues(alpha: 0.08),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -236,8 +236,12 @@ class _PitchGraphPainter extends CustomPainter {
     if (hz <= 0) return -999;
     double semi = 12 * (math.log(hz / target.baseSaHz) / math.ln2);
     // Fold into the visible octave range so any singer registers on-screen
-    while (semi < -4) semi += 12;
-    while (semi > 16) semi -= 12;
+    while (semi < -4) {
+      semi += 12;
+    }
+    while (semi > 16) {
+      semi -= 12;
+    }
     return semi;
   }
 
@@ -292,8 +296,8 @@ class _PitchGraphPainter extends CustomPainter {
       final linePaint = Paint()
         ..strokeWidth = isTarget ? 1.2 : 0.5
         ..color = isTarget
-            ? const Color(0xFFFFB347).withOpacity(0.20)
-            : Colors.white.withOpacity(0.05);
+            ? const Color(0xFFFFB347).withValues(alpha: 0.20)
+            : Colors.white.withValues(alpha: 0.05);
       canvas.drawLine(Offset(r.left, y), Offset(r.right, y), linePaint);
 
       // Note label
@@ -301,8 +305,8 @@ class _PitchGraphPainter extends CustomPainter {
         text: entry.label,
         style: TextStyle(
           color: isTarget
-              ? const Color(0xFFFFB347).withOpacity(0.95)
-              : Colors.white.withOpacity(0.40),
+              ? const Color(0xFFFFB347).withValues(alpha: 0.95)
+              : Colors.white.withValues(alpha: 0.40),
           fontSize: 11,
           fontWeight: isTarget ? FontWeight.w700 : FontWeight.w400,
           letterSpacing: 0.3,
@@ -324,7 +328,7 @@ class _PitchGraphPainter extends CustomPainter {
       ..strokeWidth = 7;
 
     final glowPaint = Paint()
-      ..color = const Color(0xFFFFB347).withOpacity(0.15)
+      ..color = const Color(0xFFFFB347).withValues(alpha: 0.15)
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 14
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
@@ -350,7 +354,7 @@ class _PitchGraphPainter extends CustomPainter {
           text: TextSpan(
             text: note.sargam,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
@@ -374,9 +378,9 @@ class _PitchGraphPainter extends CustomPainter {
     // Bright radial glow
     final gradient = RadialGradient(
       colors: [
-        Colors.cyanAccent.withOpacity(0.25 * amp),
-        Colors.cyanAccent.withOpacity(0.08 * amp),
-        Colors.cyanAccent.withOpacity(0.0),
+        Colors.cyanAccent.withValues(alpha: 0.25 * amp),
+        Colors.cyanAccent.withValues(alpha: 0.08 * amp),
+        Colors.cyanAccent.withValues(alpha: 0.0),
       ],
       stops: const [0.0, 0.5, 1.0],
     );
@@ -422,8 +426,8 @@ class _PitchGraphPainter extends CustomPainter {
       // Color intensity based on volume
       final opacity = 0.3 + 0.7 * amp;
 
-      glowBarPaint.color = Colors.cyanAccent.withOpacity(0.2 * opacity);
-      barPaint.color = Colors.cyanAccent.withOpacity(opacity);
+      glowBarPaint.color = Colors.cyanAccent.withValues(alpha: 0.2 * opacity);
+      barPaint.color = Colors.cyanAccent.withValues(alpha: opacity);
 
       canvas.drawLine(
         Offset(x, baseY),
@@ -486,7 +490,7 @@ class _PitchGraphPainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..color = Colors.cyanAccent.withOpacity(0.12)
+          ..color = Colors.cyanAccent.withValues(alpha: 0.12)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 10
           ..strokeJoin = StrokeJoin.round
@@ -497,7 +501,7 @@ class _PitchGraphPainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..color = Colors.cyanAccent.withOpacity(0.35)
+          ..color = Colors.cyanAccent.withValues(alpha: 0.35)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 4.5
           ..strokeJoin = StrokeJoin.round
@@ -508,7 +512,7 @@ class _PitchGraphPainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..color = Colors.white.withOpacity(0.9)
+          ..color = Colors.white.withValues(alpha: 0.9)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.0
           ..strokeJoin = StrokeJoin.round
@@ -550,7 +554,7 @@ class _PitchGraphPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = Colors.cyanAccent.withOpacity(0.08)
+        ..color = Colors.cyanAccent.withValues(alpha: 0.08)
         ..style = PaintingStyle.fill,
     );
 
@@ -565,7 +569,7 @@ class _PitchGraphPainter extends CustomPainter {
     canvas.drawPath(
       topPath,
       Paint()
-        ..color = Colors.cyanAccent.withOpacity(0.15)
+        ..color = Colors.cyanAccent.withValues(alpha: 0.15)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.8,
     );
@@ -580,7 +584,7 @@ class _PitchGraphPainter extends CustomPainter {
         text: '🎤',
         style: TextStyle(
           fontSize: 12,
-          color: Colors.cyanAccent.withOpacity(0.7),
+          color: Colors.cyanAccent.withValues(alpha: 0.7),
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -599,7 +603,7 @@ class _PitchGraphPainter extends CustomPainter {
       pos,
       14 * pulse,
       Paint()
-        ..color = Colors.cyanAccent.withOpacity(0.15 * pulse)
+        ..color = Colors.cyanAccent.withValues(alpha: 0.15 * pulse)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
     );
 
@@ -607,7 +611,7 @@ class _PitchGraphPainter extends CustomPainter {
     canvas.drawCircle(
       pos,
       7 * pulse,
-      Paint()..color = Colors.cyanAccent.withOpacity(0.7),
+      Paint()..color = Colors.cyanAccent.withValues(alpha: 0.7),
     );
 
     // Core dot
@@ -628,10 +632,10 @@ class _PitchGraphPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Colors.deepPurpleAccent.withOpacity(0.0),
-          Colors.deepPurpleAccent.withOpacity(0.5),
-          Colors.deepPurpleAccent.withOpacity(0.5),
-          Colors.deepPurpleAccent.withOpacity(0.0),
+          Colors.deepPurpleAccent.withValues(alpha: 0.0),
+          Colors.deepPurpleAccent.withValues(alpha: 0.5),
+          Colors.deepPurpleAccent.withValues(alpha: 0.5),
+          Colors.deepPurpleAccent.withValues(alpha: 0.0),
         ],
         stops: const [0.0, 0.15, 0.85, 1.0],
       ).createShader(Rect.fromLTRB(x, r.top, x + 1, r.bottom))

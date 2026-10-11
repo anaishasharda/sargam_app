@@ -31,15 +31,15 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.deepPurpleAccent.withOpacity(0.2),
-                    Colors.purpleAccent.withOpacity(0.1),
+                    Colors.deepPurpleAccent.withValues(alpha: 0.2),
+                    Colors.purpleAccent.withValues(alpha: 0.1),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.deepPurpleAccent.withOpacity(0.3),
+                  color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -64,7 +64,7 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
                     ragaData.description,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -73,7 +73,7 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
                     'Notes: ${ragaData.notes.join(' ')}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -139,7 +139,7 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: const Icon(
@@ -211,7 +211,7 @@ class RagaPracticeOptionsScreen extends StatelessWidget {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Icon(icon, color: color, size: 28),

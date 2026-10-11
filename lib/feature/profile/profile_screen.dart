@@ -62,7 +62,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               'Manage your musical journey',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 32),
@@ -76,7 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
@@ -258,15 +258,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.deepPurpleAccent.withOpacity(0.1),
-                            Colors.purpleAccent.withOpacity(0.05),
+                            Colors.deepPurpleAccent.withValues(alpha: 0.1),
+                            Colors.purpleAccent.withValues(alpha: 0.05),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.deepPurpleAccent.withOpacity(0.3),
+                          color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -336,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         entry.value,
                         percentage,
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),
@@ -429,9 +429,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

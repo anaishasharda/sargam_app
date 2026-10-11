@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,8 +16,6 @@ import '../../models/alankar.dart';
 import '../../models/ai_feedback_result.dart';
 import '../../services/tone_synth_service.dart';
 import '../../services/realtime_audio_service.dart';
-import '../../widgets/sing_along_graph.dart';
-import '../../widgets/user_voice_waveform.dart';
 import '../../widgets/pitch_graph.dart';
 import 'real_time_audio_analysis.dart';
 import 'audio_characteristics_display.dart';
@@ -58,7 +57,7 @@ class _PracticeScreenState extends State<PracticeScreen>
   AudioCharacteristics? _referenceCharacteristics;
   bool _usedReferenceFallback = false;
   AudioCharacteristics? _userCharacteristics;
-  bool _showRealTimeAnalysis = false;
+  final bool _showRealTimeAnalysis = false;
   bool _showCharacteristicsDisplay = false;
   String? _recordedAudioPath;
   bool _hasRecording = false;
@@ -153,15 +152,15 @@ class _PracticeScreenState extends State<PracticeScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.deepPurpleAccent.withOpacity(0.2),
-                    Colors.purpleAccent.withOpacity(0.1),
+                    Colors.deepPurpleAccent.withValues(alpha: 0.2),
+                    Colors.purpleAccent.withValues(alpha: 0.1),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Colors.deepPurpleAccent.withOpacity(0.3),
+                  color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -186,7 +185,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                     widget.ragaData.name,
                     style: TextStyle(
                       fontSize: 18,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -194,7 +193,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                     'Notes: ${widget.ragaData.notes.join(' ')}',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -356,7 +355,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.2),
+                      color: Colors.green.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.green, width: 2),
                     ),
@@ -389,7 +388,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                           height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.orange.withOpacity(0.3),
+                            color: Colors.orange.withValues(alpha: 0.3),
                             border: Border.all(color: Colors.orange, width: 2),
                           ),
                           child: const Icon(
@@ -408,7 +407,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                     height: 80,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.purple.withOpacity(0.3),
+                      color: Colors.purple.withValues(alpha: 0.3),
                       border: Border.all(color: Colors.purple, width: 2),
                     ),
                     child: const Icon(
@@ -480,12 +479,12 @@ class _PracticeScreenState extends State<PracticeScreen>
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: isActive ? effectiveColor : effectiveColor.withOpacity(0.1),
+            color: isActive ? effectiveColor : effectiveColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(40),
             border: Border.all(
               color: isActive
                   ? effectiveColor
-                  : effectiveColor.withOpacity(0.3),
+                  : effectiveColor.withValues(alpha: 0.3),
               width: 2,
             ),
           ),
@@ -502,7 +501,7 @@ class _PracticeScreenState extends State<PracticeScreen>
         Text(
           label,
           style: TextStyle(
-            color: enabled ? Colors.white : Colors.white.withOpacity(0.5),
+            color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.5),
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -517,9 +516,9 @@ class _PracticeScreenState extends State<PracticeScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,12 +557,12 @@ class _PracticeScreenState extends State<PracticeScreen>
                     decoration: BoxDecoration(
                       color: selected
                           ? Colors.deepPurpleAccent
-                          : Colors.white.withOpacity(0.06),
+                          : Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: selected
                             ? Colors.deepPurpleAccent
-                            : Colors.white.withOpacity(0.1),
+                            : Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     child: Text(
@@ -614,12 +613,12 @@ class _PracticeScreenState extends State<PracticeScreen>
                     decoration: BoxDecoration(
                       color: selected
                           ? Colors.deepPurpleAccent
-                          : Colors.white.withOpacity(0.06),
+                          : Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: selected
                             ? Colors.deepPurpleAccent
-                            : Colors.white.withOpacity(0.1),
+                            : Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     child: Text(
@@ -923,9 +922,9 @@ class _PracticeScreenState extends State<PracticeScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -1107,9 +1106,9 @@ class _PracticeScreenState extends State<PracticeScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [

@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -64,7 +65,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 'Set and track your musical milestones',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                 ),
               ),
               const SizedBox(height: 20),
@@ -76,15 +77,15 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.deepPurpleAccent.withOpacity(0.2),
-                      Colors.purpleAccent.withOpacity(0.1),
+                      Colors.deepPurpleAccent.withValues(alpha: 0.2),
+                      Colors.purpleAccent.withValues(alpha: 0.1),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.deepPurpleAccent.withOpacity(0.3),
+                    color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -108,7 +109,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             'Create a new practice challenge',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -308,7 +309,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 IconButton(
                   style: IconButton.styleFrom(
                     foregroundColor: Colors.red,
-                    side: BorderSide(color: Colors.red.withOpacity(0.5)),
+                    side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -368,15 +369,15 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       decoration: InputDecoration(
                         labelText: 'Goal Title',
                         labelStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                         ),
                         hintText: 'e.g., Practice Yaman for 7 days',
                         hintStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderSide: BorderSide(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -396,15 +397,15 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       decoration: InputDecoration(
                         labelText: 'Description',
                         labelStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                         ),
                         hintText: 'Describe your practice goal...',
                         hintStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderSide: BorderSide(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -423,15 +424,15 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       decoration: InputDecoration(
                         labelText: 'Raga/Category',
                         labelStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                         ),
                         hintText: 'e.g., Raag Yaman or General',
                         hintStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderSide: BorderSide(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -451,15 +452,15 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       decoration: InputDecoration(
                         labelText: 'Target Days',
                         labelStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                         ),
                         hintText: 'Number of days to practice',
                         hintStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderSide: BorderSide(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -476,7 +477,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -489,7 +490,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                               Text(
                                 'Deadline',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                   fontSize: 14,
                                 ),
                               ),
@@ -708,7 +709,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
           ),
           content: Text(
             'Are you sure you want to delete "${goal.title}"? This action cannot be undone.',
-            style: TextStyle(color: Colors.white.withOpacity(0.8)),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
           ),
           actions: [
             TextButton(

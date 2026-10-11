@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -900,8 +901,9 @@ class AudioAnalysisService {
   ) {
     // If user tempo was not detected, they likely weren't singing – return 0 instead of a high neutral.
     if (user.tempo == 0) return 0.0;
-    if (reference.tempo == 0)
+    if (reference.tempo == 0) {
       return 50.0; // Neutral only when reference is missing
+    }
 
     final tempoRatio = user.tempo / reference.tempo;
     final tempoDeviation = (tempoRatio - 1.0).abs();
@@ -922,8 +924,9 @@ class AudioAnalysisService {
   ) {
     // If user has no rhythm data, they weren't singing – return 0, not a high neutral.
     if (user.rhythm.isEmpty) return 0.0;
-    if (reference.rhythm.isEmpty)
+    if (reference.rhythm.isEmpty) {
       return 50.0; // Neutral only when reference is missing
+    }
 
     final correlation = _crossCorrelation(reference.rhythm, user.rhythm);
 

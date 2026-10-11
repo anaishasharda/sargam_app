@@ -86,7 +86,7 @@ class _UserVoiceWaveformState extends State<UserVoiceWaveform> {
       decoration: BoxDecoration(
         color: const Color(0xFF1B0E33),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Stack(
         children: [
@@ -107,7 +107,7 @@ class _UserVoiceWaveformState extends State<UserVoiceWaveform> {
                 Text(
                   'Your voice',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -124,7 +124,7 @@ class _UserVoiceWaveformState extends State<UserVoiceWaveform> {
                     ? '${_pitchHz.toStringAsFixed(0)} Hz'
                     : '—',
                 style: TextStyle(
-                  color: Colors.cyanAccent.withOpacity(0.85),
+                  color: Colors.cyanAccent.withValues(alpha: 0.85),
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -154,7 +154,7 @@ class _WaveformPainter extends CustomPainter {
     final barWidth = usable / _UserVoiceWaveformState._maxBars;
 
     final glowPaint = Paint()
-      ..color = Colors.cyanAccent.withOpacity(0.35)
+      ..color = Colors.cyanAccent.withValues(alpha: 0.35)
       ..strokeCap = StrokeCap.round
       ..strokeWidth = math.max(1.5, barWidth * 0.7)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);

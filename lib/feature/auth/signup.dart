@@ -200,7 +200,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.deepPurpleAccent.withOpacity(0.3),
+                              color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -232,7 +232,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                         "Sign up to start your musical journey",
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           letterSpacing: 0.3,
                         ),
                         textAlign: TextAlign.center,
@@ -312,7 +312,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                                   foregroundColor: Colors.white,
                                   elevation: 8,
                                   shadowColor: Colors.deepPurpleAccent
-                                      .withOpacity(0.4),
+                                      .withValues(alpha: 0.4),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -350,7 +350,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                                 Text(
                                   "Already have an account? ",
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.white.withValues(alpha: 0.8),
                                     fontSize: 16,
                                   ),
                                 ),
@@ -398,7 +398,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -424,21 +424,21 @@ class _SignUpScreenState extends State<SignUpScreen>
           labelText: label,
           hintText: hint,
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 16,
           ),
           labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
           prefixIcon: Icon(
             icon,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             size: 22,
           ),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.1),
+          fillColor: Colors.white.withValues(alpha: 0.1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
@@ -446,7 +446,7 @@ class _SignUpScreenState extends State<SignUpScreen>
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 1.5,
             ),
           ),
@@ -487,7 +487,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -512,29 +512,29 @@ class _SignUpScreenState extends State<SignUpScreen>
           labelText: label,
           hintText: hint,
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 16,
           ),
           labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
           prefixIcon: Icon(
             Icons.lock_outlined,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             size: 22,
           ),
           suffixIcon: IconButton(
             icon: Icon(
               isVisible ? Icons.visibility_off : Icons.visibility,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               size: 22,
             ),
             onPressed: onToggleVisibility,
           ),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.1),
+          fillColor: Colors.white.withValues(alpha: 0.1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
@@ -542,7 +542,7 @@ class _SignUpScreenState extends State<SignUpScreen>
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 1.5,
             ),
           ),

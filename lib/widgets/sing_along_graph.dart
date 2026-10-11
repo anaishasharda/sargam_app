@@ -96,7 +96,7 @@ class _SingAlongGraphState extends State<SingAlongGraph> {
         decoration: BoxDecoration(
           color: const Color(0xFF1B0E33),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
@@ -193,11 +193,11 @@ class _SingAlongPainter extends CustomPainter {
 
   void _drawGrid(Canvas canvas, Rect r) {
     final gridPaint = Paint()
-      ..color = Colors.white.withOpacity(0.06)
+      ..color = Colors.white.withValues(alpha: 0.06)
       ..strokeWidth = 1;
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
     final labelStyle = TextStyle(
-      color: Colors.white.withOpacity(0.55),
+      color: Colors.white.withValues(alpha: 0.55),
       fontSize: 11,
     );
 
@@ -210,7 +210,7 @@ class _SingAlongPainter extends CustomPainter {
       
       if (isTargetNote) {
         final highlightPaint = Paint()
-          ..color = const Color(0xFFFFB347).withOpacity(0.15)
+          ..color = const Color(0xFFFFB347).withValues(alpha: 0.15)
           ..strokeWidth = 2;
         canvas.drawLine(Offset(r.left, y), Offset(r.right, y), highlightPaint);
       } else {
@@ -221,7 +221,7 @@ class _SingAlongPainter extends CustomPainter {
         text: entry.label,
         style: isTargetNote
             ? labelStyle.copyWith(
-                color: const Color(0xFFFFB347).withOpacity(0.9),
+                color: const Color(0xFFFFB347).withValues(alpha: 0.9),
                 fontWeight: FontWeight.bold,
               )
             : labelStyle,
@@ -282,7 +282,7 @@ class _SingAlongPainter extends CustomPainter {
 
     // 3. Setup paints for a smooth, glowing line
     final glowPaintOuter = Paint()
-      ..color = Colors.cyanAccent.withOpacity(0.15)
+      ..color = Colors.cyanAccent.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8.0
       ..strokeJoin = StrokeJoin.round
@@ -290,7 +290,7 @@ class _SingAlongPainter extends CustomPainter {
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
 
     final glowPaintInner = Paint()
-      ..color = Colors.cyanAccent.withOpacity(0.4)
+      ..color = Colors.cyanAccent.withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4.0
       ..strokeJoin = StrokeJoin.round
@@ -359,13 +359,13 @@ class _SingAlongPainter extends CustomPainter {
           Offset(cx, cy),
           12,
           Paint()
-            ..color = Colors.cyanAccent.withOpacity(0.2)
+            ..color = Colors.cyanAccent.withValues(alpha: 0.2)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
         );
         canvas.drawCircle(
           Offset(cx, cy),
           6,
-          Paint()..color = Colors.cyanAccent.withOpacity(0.8),
+          Paint()..color = Colors.cyanAccent.withValues(alpha: 0.8),
         );
         canvas.drawCircle(
           Offset(cx, cy),
@@ -379,7 +379,7 @@ class _SingAlongPainter extends CustomPainter {
   void _drawPlayhead(Canvas canvas, Rect r, double frac) {
     final x = r.left + r.width * frac;
     final paint = Paint()
-      ..color = Colors.deepPurpleAccent.withOpacity(0.6)
+      ..color = Colors.deepPurpleAccent.withValues(alpha: 0.6)
       ..strokeWidth = 1.5;
     canvas.drawLine(Offset(x, r.top), Offset(x, r.bottom), paint);
   }

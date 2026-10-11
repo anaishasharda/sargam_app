@@ -130,7 +130,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   DropdownButtonFormField<String>(
                     dropdownColor: Colors.deepPurple,
-                    value: selectedTime,
+                    initialValue: selectedTime,
                     items: times
                         .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                         .toList(),
@@ -158,7 +158,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   DropdownButtonFormField<int>(
                     dropdownColor: Colors.deepPurple,
-                    value: selectedMinutes,
+                    initialValue: selectedMinutes,
                     items: practiceOptions
                         .map(
                           (m) =>
@@ -230,7 +230,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
       ),
       style: TextStyle(color: Colors.white),
-      value: value,
+      initialValue: value,
       items: items
           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
           .toList(),

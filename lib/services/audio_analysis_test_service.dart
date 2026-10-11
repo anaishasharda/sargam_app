@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:io';
 import 'dart:math' as math;
 // import 'dart:typed_data'; // Not needed for current implementation
@@ -488,8 +489,9 @@ class AudioAnalysisTestService {
     for (final entry in results.entries) {
       if (entry.key.startsWith('_') ||
           entry.key == 'overall_status' ||
-          entry.key == 'timestamp')
+          entry.key == 'timestamp') {
         continue;
+      }
 
       print('${entry.key.toUpperCase()}:');
       if (entry.value is Map<String, dynamic>) {

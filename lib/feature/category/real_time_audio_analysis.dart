@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -162,15 +163,15 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.deepPurpleAccent.withOpacity(0.1),
-            Colors.purpleAccent.withOpacity(0.05),
+            Colors.deepPurpleAccent.withValues(alpha: 0.1),
+            Colors.purpleAccent.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.deepPurpleAccent.withOpacity(0.3),
+          color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -228,7 +229,7 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
                 boxShadow: [
                   BoxShadow(
                     color: (_isAnalyzing ? Colors.red : Colors.green)
-                        .withOpacity(0.3),
+                        .withValues(alpha: 0.3),
                     blurRadius: 10,
                     spreadRadius: 2,
                   ),
@@ -254,9 +255,9 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -346,9 +347,9 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -367,7 +368,7 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
             label,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -382,9 +383,9 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -403,7 +404,7 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
             label,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -416,9 +417,9 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
     return Container(
       height: 120,
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Stack(
         children: [
@@ -435,7 +436,7 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
             child: Text(
               'Pitch Match',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 10,
               ),
             ),
@@ -450,8 +451,8 @@ class _RealTimeAudioAnalysisState extends State<RealTimeAudioAnalysis>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: _isAnalyzing
-            ? Colors.green.withOpacity(0.2)
-            : Colors.grey.withOpacity(0.2),
+            ? Colors.green.withValues(alpha: 0.2)
+            : Colors.grey.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: _isAnalyzing ? Colors.green : Colors.grey,
@@ -513,7 +514,7 @@ class PitchTrajectoryPainter extends CustomPainter {
     const double maxPitch = 1000.0;
 
     final refPaint = Paint()
-      ..color = Colors.grey.withOpacity(0.4)
+      ..color = Colors.grey.withValues(alpha: 0.4)
       ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;

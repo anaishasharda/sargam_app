@@ -156,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen>
                   height: 150,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.deepPurpleAccent.withOpacity(0.1),
+                    color: Colors.deepPurpleAccent.withValues(alpha: 0.1),
                   ),
                 ),
               ),
@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen>
                   height: 200,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.purpleAccent.withOpacity(0.1),
+                    color: Colors.purpleAccent.withValues(alpha: 0.1),
                   ),
                 ),
               ),
@@ -203,8 +203,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.deepPurpleAccent.withOpacity(
-                                      0.3,
+                                    color: Colors.deepPurpleAccent.withValues(
+                                      alpha: 0.3,
                                     ),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
@@ -237,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen>
                               "Sign in to continue your musical journey",
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 letterSpacing: 0.3,
                               ),
                               textAlign: TextAlign.center,
@@ -293,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen>
                                         foregroundColor: Colors.white,
                                         elevation: 8,
                                         shadowColor: Colors.deepPurpleAccent
-                                            .withOpacity(0.4),
+                                            .withValues(alpha: 0.4),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             16,
@@ -333,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     children: [
                                       Expanded(
                                         child: Divider(
-                                          color: Colors.white.withOpacity(0.3),
+                                          color: Colors.white.withValues(alpha: 0.3),
                                           thickness: 1,
                                         ),
                                       ),
@@ -344,8 +344,8 @@ class _LoginScreenState extends State<LoginScreen>
                                         child: Text(
                                           "OR",
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(
-                                              0.6,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.6,
                                             ),
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
@@ -354,7 +354,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                                       Expanded(
                                         child: Divider(
-                                          color: Colors.white.withOpacity(0.3),
+                                          color: Colors.white.withValues(alpha: 0.3),
                                           thickness: 1,
                                         ),
                                       ),
@@ -370,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       Text(
                                         "Don't have an account? ",
                                         style: TextStyle(
-                                          color: Colors.white.withOpacity(0.8),
+                                          color: Colors.white.withValues(alpha: 0.8),
                                           fontSize: 16,
                                         ),
                                       ),
@@ -427,7 +427,7 @@ class _LoginScreenState extends State<LoginScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -453,21 +453,21 @@ class _LoginScreenState extends State<LoginScreen>
           labelText: label,
           hintText: hint,
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 16,
           ),
           labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
           prefixIcon: Icon(
             icon,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             size: 22,
           ),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.1),
+          fillColor: Colors.white.withValues(alpha: 0.1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
@@ -475,7 +475,7 @@ class _LoginScreenState extends State<LoginScreen>
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 1.5,
             ),
           ),
@@ -509,7 +509,7 @@ class _LoginScreenState extends State<LoginScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -532,23 +532,23 @@ class _LoginScreenState extends State<LoginScreen>
           labelText: "Password",
           hintText: "Enter your password",
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 16,
           ),
           labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
           prefixIcon: Icon(
             Icons.lock_outlined,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             size: 22,
           ),
           suffixIcon: IconButton(
             icon: Icon(
               _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               size: 22,
             ),
             onPressed: () {
@@ -558,7 +558,7 @@ class _LoginScreenState extends State<LoginScreen>
             },
           ),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.1),
+          fillColor: Colors.white.withValues(alpha: 0.1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
@@ -566,7 +566,7 @@ class _LoginScreenState extends State<LoginScreen>
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 1.5,
             ),
           ),

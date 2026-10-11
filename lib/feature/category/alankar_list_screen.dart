@@ -54,7 +54,7 @@ class AlankarListScreen extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.deepPurpleAccent.withOpacity(0.15),
+                        color: Colors.deepPurpleAccent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(22),
                       ),
                       alignment: Alignment.center,

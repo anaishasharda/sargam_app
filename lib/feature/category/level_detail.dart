@@ -25,7 +25,7 @@ class LevelDetailScreen extends StatelessWidget {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.arrow_back, color: Colors.white),
@@ -47,7 +47,7 @@ class LevelDetailScreen extends StatelessWidget {
               '${ragas.length} ragas available',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -65,7 +65,7 @@ class LevelDetailScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -93,8 +93,8 @@ class LevelDetailScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              Colors.deepPurpleAccent.withOpacity(0.8),
-                              Colors.purpleAccent.withOpacity(0.6),
+                              Colors.deepPurpleAccent.withValues(alpha: 0.8),
+                              Colors.purpleAccent.withValues(alpha: 0.6),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,

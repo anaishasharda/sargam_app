@@ -52,7 +52,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               'Track your musical journey',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 32),
@@ -289,7 +289,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 decoration: BoxDecoration(
                   color: _getAccuracyColor(
                     session.pitchAccuracy,
-                  ).withOpacity(0.1),
+                  ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _getAccuracyColor(session.pitchAccuracy),
@@ -563,7 +563,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Icon(icon, color: color, size: 28),

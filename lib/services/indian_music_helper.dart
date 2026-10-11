@@ -301,8 +301,9 @@ class IndianMusicHelper {
     List<double> detectedRhythm,
     double tempo,
   ) {
-    if (!commonTaals.containsKey(expectedTaal) || detectedRhythm.isEmpty)
+    if (!commonTaals.containsKey(expectedTaal) || detectedRhythm.isEmpty) {
       return 0.0;
+    }
 
     final expectedPattern = commonTaals[expectedTaal]!;
     final expectedBeats = expectedPattern.reduce((a, b) => a + b);

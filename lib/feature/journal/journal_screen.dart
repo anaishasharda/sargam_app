@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -143,12 +144,11 @@ class _JournalScreenState extends State<JournalScreen> {
 
     final totalMinutes = snapshots.fold<int>(
       0,
-      (sum, item) => sum + item.practiceTime,
+      (total, item) => total + item.practiceTime,
     );
     final averageAccuracy =
-        snapshots.fold<double>(0, (sum, item) => sum + item.pitchAccuracy) /
-        snapshots.length;
-
+    snapshots.fold<double>(0, (total, item) => total + item.pitchAccuracy) /
+    snapshots.length;
     final stabilityValues = snapshots
         .where((item) => item.stability != null)
         .map((item) => item.stability!)
@@ -159,7 +159,7 @@ class _JournalScreenState extends State<JournalScreen> {
         .toList();
     final weeklyMinutes = snapshots
         .where((item) => DateTime.now().difference(item.date).inDays < 7)
-        .fold<int>(0, (sum, item) => sum + item.practiceTime);
+        .fold<int>(0, (total, item) => total + item.practiceTime);
 
     final ragaCounts = <String, int>{};
     for (final snapshot in snapshots) {
@@ -168,10 +168,10 @@ class _JournalScreenState extends State<JournalScreen> {
 
     String focusRaga = snapshots.first.raga;
     int focusRagaCount = 0;
-    ragaCounts.forEach((raga, count) {
-      if (count > focusRagaCount) {
+    ragaCounts.forEach((raga, ragaCount) {
+      if (ragaCount > focusRagaCount) {
         focusRaga = raga;
-        focusRagaCount = count;
+        focusRagaCount = ragaCount;
       }
     });
 
@@ -181,14 +181,14 @@ class _JournalScreenState extends State<JournalScreen> {
         ? averageAccuracy
         : recentWindow.fold<double>(
                 0,
-                (sum, item) => sum + item.pitchAccuracy,
+                (total, item) => total + item.pitchAccuracy,
               ) /
               recentWindow.length;
     final previousAverage = previousWindow.isEmpty
         ? recentAverage
         : previousWindow.fold<double>(
                 0,
-                (sum, item) => sum + item.pitchAccuracy,
+                (total, item) => total + item.pitchAccuracy,
               ) /
               previousWindow.length;
     final delta = recentAverage - previousAverage;
@@ -210,11 +210,11 @@ class _JournalScreenState extends State<JournalScreen> {
       practiceStreak: _calculatePracticeStreak(snapshots),
       averageStability: stabilityValues.isEmpty
           ? null
-          : stabilityValues.fold<double>(0, (sum, item) => sum + item) /
+          : stabilityValues.fold<double>(0, (total, item) => total + item) /
                 stabilityValues.length,
       averageBrightness: brightnessValues.isEmpty
           ? null
-          : brightnessValues.fold<double>(0, (sum, item) => sum + item) /
+          : brightnessValues.fold<double>(0, (total, item) => total + item) /
                 brightnessValues.length,
       weeklyMinutes: weeklyMinutes,
       focusRaga: focusRaga,
@@ -504,7 +504,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   'Track your daily progress and practice sessions',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -598,7 +598,7 @@ class _JournalScreenState extends State<JournalScreen> {
             const SizedBox(height: 8),
             Text(
               'Your practice insights will appear here after a few logged sessions.',
-              style: TextStyle(color: Colors.white.withOpacity(0.75)),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
             ),
           ],
         ),
@@ -627,10 +627,10 @@ class _JournalScreenState extends State<JournalScreen> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: metrics.trendColor.withOpacity(0.16),
+                  color: metrics.trendColor.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(
-                    color: metrics.trendColor.withOpacity(0.5),
+                    color: metrics.trendColor.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Text(
@@ -648,7 +648,7 @@ class _JournalScreenState extends State<JournalScreen> {
           Text(
             'Brief view of your past practice. Gemini can expand this into a detailed improvement plan.',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.75),
+              color: Colors.white.withValues(alpha: 0.75),
               fontSize: 12,
               height: 1.35,
             ),
@@ -731,14 +731,14 @@ class _JournalScreenState extends State<JournalScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.white.withOpacity(0.12),
-            Colors.deepPurpleAccent.withOpacity(0.16),
+            Colors.white.withValues(alpha: 0.12),
+            Colors.deepPurpleAccent.withValues(alpha: 0.16),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: child,
     );
@@ -751,15 +751,15 @@ class _JournalScreenState extends State<JournalScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.deepPurpleAccent.withOpacity(0.2),
-            Colors.purpleAccent.withOpacity(0.1),
+            Colors.deepPurpleAccent.withValues(alpha: 0.2),
+            Colors.purpleAccent.withValues(alpha: 0.1),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.deepPurpleAccent.withOpacity(0.3),
+          color: Colors.deepPurpleAccent.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -783,7 +783,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   'Record today\'s practice session',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -811,9 +811,9 @@ class _JournalScreenState extends State<JournalScreen> {
       width: 132,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -832,7 +832,7 @@ class _JournalScreenState extends State<JournalScreen> {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 12,
             ),
           ),
@@ -845,7 +845,7 @@ class _JournalScreenState extends State<JournalScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.18),
+        color: Colors.black.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(999),
       ),
       child: RichText(
@@ -854,7 +854,7 @@ class _JournalScreenState extends State<JournalScreen> {
             TextSpan(
               text: '$label: ',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.65),
+                color: Colors.white.withValues(alpha: 0.65),
                 fontSize: 12,
               ),
             ),
@@ -900,7 +900,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   child: Text(
                     item,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.84),
+                      color: Colors.white.withValues(alpha: 0.84),
                       height: 1.4,
                     ),
                   ),
@@ -926,9 +926,9 @@ class _JournalScreenState extends State<JournalScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.45)),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Text(
         trend,
@@ -986,7 +986,7 @@ class _JournalScreenState extends State<JournalScreen> {
                       decoration: BoxDecoration(
                         color: _getAccuracyColor(
                           snapshot.pitchAccuracy,
-                        ).withOpacity(0.1),
+                        ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _getAccuracyColor(snapshot.pitchAccuracy),
@@ -1152,10 +1152,10 @@ class _JournalScreenState extends State<JournalScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.08),
+                          color: Colors.orange.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: Colors.orange.withOpacity(0.35),
+                            color: Colors.orange.withValues(alpha: 0.35),
                           ),
                         ),
                         child: Text(
@@ -1260,9 +1260,9 @@ class _JournalScreenState extends State<JournalScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1421,11 +1421,11 @@ class _JournalScreenState extends State<JournalScreen> {
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(12),
         ),
         focusedBorder: OutlineInputBorder(
@@ -1520,7 +1520,7 @@ class _JournalScreenState extends State<JournalScreen> {
           ),
           content: Text(
             'Are you sure you want to delete this journal entry for "${entry.raga}"? This action cannot be undone.',
-            style: TextStyle(color: Colors.white.withOpacity(0.8)),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
           ),
           actions: [
             TextButton(
@@ -1699,10 +1699,10 @@ class _AiFeedbackSectionState extends State<_AiFeedbackSection> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.deepPurple.withOpacity(0.05),
+              color: Colors.deepPurple.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: Colors.deepPurple.withOpacity(0.2),
+                color: Colors.deepPurple.withValues(alpha: 0.2),
               ),
             ),
             child: Text(

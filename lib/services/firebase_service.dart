@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
@@ -47,7 +48,7 @@ class FirebaseService {
       await _usersCollection.doc(userProfile.id).set(userProfile.toFirestore());
     } catch (e) {
       print('Error creating user profile: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -58,7 +59,7 @@ class FirebaseService {
           .update(userProfile.toFirestore());
     } catch (e) {
       print('Error updating user profile: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -75,7 +76,7 @@ class FirebaseService {
       return docRef.id;
     } catch (e) {
       print('Error adding practice session: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -139,7 +140,7 @@ class FirebaseService {
       return docRef.id;
     } catch (e) {
       print('Error adding journal entry: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -176,7 +177,7 @@ class FirebaseService {
       await _journalEntriesCollection.doc(entry.id).update(entry.toFirestore());
     } catch (e) {
       print('Error updating journal entry: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -185,7 +186,7 @@ class FirebaseService {
       await _journalEntriesCollection.doc(entryId).delete();
     } catch (e) {
       print('Error deleting journal entry: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -196,7 +197,7 @@ class FirebaseService {
       return docRef.id;
     } catch (e) {
       print('Error adding practice goal: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -226,7 +227,7 @@ class FirebaseService {
       await _practiceGoalsCollection.doc(goal.id).update(goal.toFirestore());
     } catch (e) {
       print('Error updating practice goal: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -235,7 +236,7 @@ class FirebaseService {
       await _practiceGoalsCollection.doc(goalId).delete();
     } catch (e) {
       print('Error deleting practice goal: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -261,14 +262,14 @@ class FirebaseService {
       // Calculate total practice time
       final totalPracticeTime = sessions.fold<int>(
         0,
-        (sum, session) => sum + session.practiceTime,
+        (total, session) => total + session.practiceTime,
       );
 
       // Calculate average pitch accuracy
       final averagePitchAccuracy =
           sessions.fold<double>(
             0,
-            (sum, session) => sum + session.pitchAccuracy,
+            (total, session) => total + session.pitchAccuracy,
           ) /
           sessions.length;
 
@@ -285,9 +286,9 @@ class FirebaseService {
       // Find favorite raga
       String favoriteRaga = '';
       int maxCount = 0;
-      ragaPracticeCount.forEach((raga, count) {
-        if (count > maxCount) {
-          maxCount = count;
+      ragaPracticeCount.forEach((raga, practiceCount) {
+        if (practiceCount > maxCount) {
+          maxCount = practiceCount;
           favoriteRaga = raga;
         }
       });
