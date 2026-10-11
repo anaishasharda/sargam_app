@@ -42,12 +42,25 @@ android {
         versionName = "1.0.12"
     }
 
+    //signingConfigs {
+    //    create("release") {
+    //        keyAlias = keystoreProperties["keyAlias"] as String
+    //        keyPassword = keystoreProperties["keyPassword"] as String
+    //        storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+    //        storePassword = keystoreProperties["storePassword"] as String
+    //    }
+    //}
+
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String
+            // key.properties is gitignored and only exists on machines set up
+            // for store releases. Debug builds don't need it.
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
