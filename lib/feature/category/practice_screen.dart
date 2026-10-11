@@ -56,6 +56,7 @@ class _PracticeScreenState extends State<PracticeScreen>
   bool _isAnalyzing = false;
   AudioFeedback? _lastFeedback;
   AudioCharacteristics? _referenceCharacteristics;
+  bool _usedReferenceFallback = false;
   AudioCharacteristics? _userCharacteristics;
   bool _showRealTimeAnalysis = false;
   bool _showCharacteristicsDisplay = false;
@@ -1236,6 +1237,7 @@ class _PracticeScreenState extends State<PracticeScreen>
       // Analyze the reference audio if not already done
       if (_referenceCharacteristics == null) {
         print('Analyzing reference audio: ${widget.audioPath}');
+        _usedReferenceFallback = false;
 
         // Get the asset file as a temporary file for analysis
         final referenceFile = await _audioService.getAssetFile(
@@ -1263,6 +1265,7 @@ class _PracticeScreenState extends State<PracticeScreen>
               spectrum: const [],
               duration: 5.0,
             );
+            _usedReferenceFallback = true;
           } else {
             print('Reference notes: ${_referenceCharacteristics?.notes}');
           }
@@ -1278,6 +1281,7 @@ class _PracticeScreenState extends State<PracticeScreen>
             spectrum: const [],
             duration: 5.0,
           );
+          _usedReferenceFallback = true;
         }
       }
 
@@ -1325,6 +1329,20 @@ class _PracticeScreenState extends State<PracticeScreen>
         _aiFeedbackError = null;
         _selectedAnalysisTab = 0;
       });
+
+      if (_usedReferenceFallback && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Warning: the reference recording could not be analyzed. '
+              'Scores are compared against a default reference, not the recording.',
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 6),
+          ),
+        );
+      }
 
       _fetchAIFeedback();
 
