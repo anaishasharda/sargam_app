@@ -57,7 +57,6 @@ SaTakeResult analyzeSaTake(List<double> pitchSamplesHz) {
       pitchSamplesHz.where((f) => f > 0).toList(growable: false);
   assert(voiced.isNotEmpty, 'take has no voiced samples');
   final median = _median(voiced);
-  final mean = voiced.reduce((a, b) => a + b) / voiced.length;
   final variance = voiced
           .map((f) => pow(centsFromSa(f, median), 2))
           .reduce((a, b) => a + b) /
