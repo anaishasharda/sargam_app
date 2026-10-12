@@ -6,6 +6,7 @@ import 'package:sargam_app/services/audio_service.dart';
 import 'package:sargam_app/services/audio_analysis_service.dart';
 import 'package:sargam_app/services/app_state_service.dart';
 import 'package:sargam_app/services/ai_analysis_service.dart';
+import 'package:sargam_app/services/normalized_compare.dart';
 
 import '../../models/audio_feedback.dart';
 import '../../models/audio_characteristics.dart';
@@ -1222,6 +1223,12 @@ class _PracticeScreenState extends State<PracticeScreen>
       _isAnalyzing = true;
     });
 
+    // Plan 1.8: the signed-in student's stored Sa (Patch 3a), read
+    // synchronously here, before any await in this method. Null when the
+    // student has not calibrated yet — compareAudio then uses its legacy
+    // pitch scoring.
+    final userSaHz = context.read<AppStateService>().currentUser?.baseSaHz;
+
     try {
       // Show analyzing message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1313,10 +1320,24 @@ class _PracticeScreenState extends State<PracticeScreen>
 
       // Compare both audio files
       print('Comparing audio files...');
+      // Plan 1.8: estimate the reference's Sa from its own contour. An
+      // estimate of 0 means it could not be estimated (e.g. the fallback
+      // dummy reference, which has no contour) and leaves the legacy pitch
+      // scoring in place.
+      final estimatedReferenceSaHz = estimateSaFromContour(
+        _referenceCharacteristics!.pitchTrajectory,
+      );
+      print(
+        'Sa for comparison - user: $userSaHz Hz, reference estimate: ${estimatedReferenceSaHz.toStringAsFixed(2)} Hz',
+      );
       final feedback = await _analysisService.compareAudio(
         _referenceCharacteristics!,
         _userCharacteristics!,
         widget.ragaData.notes,
+        userSaHz: userSaHz,
+        referenceSaHz: estimatedReferenceSaHz > 0
+            ? estimatedReferenceSaHz
+            : null,
       );
       print('Comparison complete');
 

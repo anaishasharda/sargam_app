@@ -1,0 +1,208 @@
+import 'dart:math';
+
+import 'sa_pitch.dart';
+
+/// Sa-normalized trajectory comparison (plan 1.8).
+///
+/// The legacy `compareAudio` compared raw Hz ratios between the reference
+/// recording and the student. That punishes a student purely for having a
+/// different Sa: sing a perfect Bhopali aaroh at Sa = D against a reference
+/// recorded at Sa = C# and the old trajectory score collapsed (~46% in the
+/// 2026-10-10 device logs), even with flawless relative intonation.
+///
+/// This engine instead converts each singer's contour to cents relative to
+/// THAT singer's own Sa (via [centsFromSa]) and compares in cents space.
+/// A perfect performance at any Sa — or in any octave — scores ~100.
+/// Nothing musical is ever scored in absolute Hz.
+///
+/// Pure Dart (only depends on sa_pitch.dart primitives), so it can be
+/// unit-tested standalone and later wired into the app's compareAudio.
+
+/// Result of a normalized trajectory comparison.
+class NormalizedComparison {
+  /// 0..100. Higher = user's intonation contour matches the reference's,
+  /// after each is normalized to its own Sa.
+  final double trajectoryScore;
+
+  /// Mean |user - ref| deviation across aligned points, in cents.
+  /// On degenerate input (no comparable points) this is
+  /// [NormalizedComparison.maxDeviationCentsSentinel], not infinity.
+  final double meanAbsDeviationCents;
+
+  /// Per-aligned-point signed deviation (user - ref), in cents.
+  /// Positive = user sharp of the reference at that point.
+  /// Empty on degenerate input.
+  final List<double> alignedDeviationsCents;
+
+  const NormalizedComparison({
+    required this.trajectoryScore,
+    required this.meanAbsDeviationCents,
+    required this.alignedDeviationsCents,
+  });
+
+  /// Sentinel "worst possible" mean deviation used when no points could be
+  /// compared. One full octave of average error is a natural cap: anything
+  /// at or beyond it is simply "no match", and the score formula floors at 0
+  /// there anyway. Using a finite sentinel keeps callers NaN/infinity-free.
+  static const double maxDeviationCentsSentinel = 1200.0;
+}
+
+/// Tunable slope: score points lost per cent of mean absolute deviation,
+/// i.e. score = 100 - 0.5 * meanAbsDeviationCents.
+///   50c mean deviation  -> 75
+///  100c mean deviation  -> 50  (a full semitone off on average)
+///  200c mean deviation  -> 0
+/// This is a starting hypothesis (plan 1.5 will tune it against labeled
+/// recordings); it is deliberately gentler than the legacy raw-ratio slope,
+/// which mapped a ~5.9% Hz error (≈100c) to a 30-point loss before octave
+/// folding muddied it further.
+const double _scorePointsPerCent = 0.5;
+
+/// Compare [userTrajectoryHz] against [referenceTrajectoryHz], each
+/// normalized to its own Sa.
+///
+/// Alignment intentionally mirrors the legacy code's proportional
+/// resampling, so scores change only because of normalization, not because
+/// of a new alignment policy: the number of compared points is
+/// min(len(ref), len(user)); the reference index for point i is
+/// (i * refLen / comparisons).floor(); the user index is i.
+/// Pairs where either pitch is <= 0 (unvoiced/dropout) are skipped.
+/// Deviations are signed cents (user - ref). There is NO octave folding:
+/// after Sa-normalization an octave error is a real 1200-cent error and is
+/// scored as one.
+///
+/// Never throws. Degenerate input (either contour empty, a non-positive
+/// Sa, or no valid pairs) returns score 0 with the sentinel mean deviation.
+NormalizedComparison compareNormalized({
+  required List<double> referenceTrajectoryHz,
+  required double referenceSaHz,
+  required List<double> userTrajectoryHz,
+  required double userSaHz,
+}) {
+  const degenerate = NormalizedComparison(
+    trajectoryScore: 0.0,
+    meanAbsDeviationCents:
+        NormalizedComparison.maxDeviationCentsSentinel,
+    alignedDeviationsCents: <double>[],
+  );
+
+  if (referenceTrajectoryHz.isEmpty || userTrajectoryHz.isEmpty) {
+    return degenerate;
+  }
+  // centsFromSa asserts positive frequencies; guard here so bad stored data
+  // degrades to a zero score instead of an exception.
+  if (referenceSaHz <= 0 || userSaHz <= 0) return degenerate;
+
+  final refLen = referenceTrajectoryHz.length;
+  final userLen = userTrajectoryHz.length;
+  final comparisons = min(refLen, userLen);
+
+  final deviations = <double>[];
+  var totalAbsDeviation = 0.0;
+  for (var i = 0; i < comparisons; i++) {
+    final refIndex = (i * refLen / comparisons).floor();
+    final refPitch = referenceTrajectoryHz[refIndex];
+    final userPitch = userTrajectoryHz[i];
+    if (refPitch <= 0 || userPitch <= 0) continue;
+    final refCents = centsFromSa(refPitch, referenceSaHz);
+    final userCents = centsFromSa(userPitch, userSaHz);
+    final deviation = userCents - refCents;
+    deviations.add(deviation);
+    totalAbsDeviation += deviation.abs();
+  }
+
+  if (deviations.isEmpty) return degenerate;
+
+  final meanAbs = totalAbsDeviation / deviations.length;
+  final score = max(0.0, 100.0 - _scorePointsPerCent * meanAbs);
+  return NormalizedComparison(
+    trajectoryScore: score,
+    meanAbsDeviationCents: meanAbs,
+    alignedDeviationsCents: deviations,
+  );
+}
+
+/// Estimate a recording's Sa (in Hz) from its pitch contour alone.
+///
+/// Used for reference recordings, which arrive without a stored Sa
+/// (plan 1.8: "analyze the reference once and store its Sa").
+///
+/// Method:
+///  1. Drop unvoiced samples (<= 0). If none remain, return 0.
+///  2. Fold every sample to a pitch class — cents above a fixed 110 Hz
+///     reference, mod 1200 — and histogram into 10-cent bins. The densest
+///     bin's pitch class is the Sa class. Folding is what makes this work:
+///     an aaroh touches Sa twice (low Sa and Sa'), an avroh likewise, so
+///     the Sa class collects more samples than any single other swara.
+///  3. Among samples whose pitch class lies within ±50 cents of the Sa
+///     class, cluster by octave and take the LOWEST cluster, returning its
+///     median Hz. Rationale: aaroh/avroh both touch the low Sa, and the
+///     lowest Sa cluster is the tonic in the octave actually sung —
+///     normalization depends on getting that octave right, because the
+///     stored Sa anchors everything downstream (a Sa estimated an octave
+///     high would still normalize intervals correctly, but would mislead
+///     drift checks and the teacher's by-ear verification).
+///
+/// Fallback: if the histogram is ambiguous (too few voiced samples, or no
+/// bin collects at least 2 samples), return the median of all voiced
+/// samples — a crude but bounded guess for pathological input.
+double estimateSaFromContour(List<double> trajectoryHz) {
+  final voiced = trajectoryHz.where((f) => f > 0).toList(growable: false);
+  if (voiced.isEmpty) return 0.0;
+  if (voiced.length < 5) return _median(voiced);
+
+  const binWidthCents = 10.0;
+  const binCount = 120; // 1200 / 10
+  final bins = List<int>.filled(binCount, 0);
+  final pitchClasses = List<double>.filled(voiced.length, 0.0);
+  for (var i = 0; i < voiced.length; i++) {
+    final pc = _pitchClassCents(voiced[i]);
+    pitchClasses[i] = pc;
+    var bin = (pc / binWidthCents).floor();
+    if (bin < 0) bin = 0;
+    if (bin >= binCount) bin = binCount - 1;
+    bins[bin]++;
+  }
+  var densestBin = 0;
+  for (var b = 1; b < binCount; b++) {
+    if (bins[b] > bins[densestBin]) densestBin = b;
+  }
+  if (bins[densestBin] < 2) return _median(voiced);
+  final saClassCenter = densestBin * binWidthCents + binWidthCents / 2;
+
+  final saSamples = <double>[];
+  for (var i = 0; i < voiced.length; i++) {
+    var d = (pitchClasses[i] - saClassCenter).abs();
+    d = min(d, 1200.0 - d); // circular distance
+    if (d <= 50.0) saSamples.add(voiced[i]);
+  }
+  if (saSamples.isEmpty) return _median(voiced);
+
+  // Cluster the Sa-class samples by octave: sorted samples further apart
+  // than 100 cents belong to different octaves (true Sa octaves are ~1200
+  // cents apart, so the threshold has wide margin on both sides).
+  saSamples.sort();
+  final lowestCluster = <double>[saSamples.first];
+  for (var i = 1; i < saSamples.length; i++) {
+    final gapCents = centsFromSa(saSamples[i], saSamples[i - 1]);
+    if (gapCents > 100.0) break;
+    lowestCluster.add(saSamples[i]);
+  }
+  return _median(lowestCluster);
+}
+
+/// Pitch class of [freqHz] in cents (0..1200), relative to a fixed
+/// 110 Hz reference so classes are comparable across samples.
+/// (110 Hz is arbitrary; only mod-1200 position matters.)
+double _pitchClassCents(double freqHz) {
+  final cents = 1200.0 * log(freqHz / 110.0) / ln2;
+  return ((cents % 1200.0) + 1200.0) % 1200.0;
+}
+
+double _median(List<double> values) {
+  final sorted = List<double>.from(values)..sort();
+  final mid = sorted.length ~/ 2;
+  return sorted.length.isOdd
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2.0;
+}

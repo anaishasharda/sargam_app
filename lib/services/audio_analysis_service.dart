@@ -10,6 +10,7 @@ import 'package:fftea/fftea.dart';
 // import 'package:collection/collection.dart'; // Will be used in future updates
 import '../models/audio_characteristics.dart';
 import '../models/audio_feedback.dart';
+import 'normalized_compare.dart';
 
 class AudioAnalysisService {
   static final AudioAnalysisService _instance =
@@ -98,8 +99,10 @@ class AudioAnalysisService {
   Future<AudioFeedback> compareAudio(
     AudioCharacteristics reference,
     AudioCharacteristics user,
-    List<String> expectedNotes,
-  ) async {
+    List<String> expectedNotes, {
+    double? userSaHz,
+    double? referenceSaHz,
+  }) async {
     try {
       print('\n=== Audio Comparison ===');
       print(
@@ -130,8 +133,31 @@ class AudioAnalysisService {
         );
       }
 
-      // Enhanced pitch accuracy using frequency domain analysis
-      final pitchAccuracy = _calculateEnhancedPitchAccuracy(reference, user);
+      // Enhanced pitch accuracy using frequency domain analysis.
+      // Plan 1.8: when both Sa values are known and both pitch contours
+      // exist, score in Sa-normalized cents space (normalized_compare.dart)
+      // so a student is not punished for singing at a different Sa than the
+      // reference. In every other case the legacy calculation runs
+      // unchanged.
+      final double pitchAccuracy;
+      if (userSaHz != null &&
+          userSaHz > 0 &&
+          referenceSaHz != null &&
+          referenceSaHz > 0 &&
+          reference.pitchTrajectory.isNotEmpty &&
+          user.pitchTrajectory.isNotEmpty) {
+        pitchAccuracy = compareNormalized(
+          referenceTrajectoryHz: reference.pitchTrajectory,
+          referenceSaHz: referenceSaHz,
+          userTrajectoryHz: user.pitchTrajectory,
+          userSaHz: userSaHz,
+        ).trajectoryScore;
+        print(
+          'Pitch scoring: Sa-normalized (user Sa $userSaHz Hz, reference Sa $referenceSaHz Hz)',
+        );
+      } else {
+        pitchAccuracy = _calculateEnhancedPitchAccuracy(reference, user);
+      }
       print('Pitch Accuracy: ${pitchAccuracy.toStringAsFixed(2)}%');
 
       // Enhanced tempo accuracy with beat tracking
