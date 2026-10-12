@@ -181,14 +181,50 @@ double estimateSaFromContour(List<double> trajectoryHz) {
   // Cluster the Sa-class samples by octave: sorted samples further apart
   // than 100 cents belong to different octaves (true Sa octaves are ~1200
   // cents apart, so the threshold has wide margin on both sides).
+  //
+  // Cluster choice — a cluster qualifies as Sa only if BOTH:
+  //  (i) it has at least half the densest cluster's count, and
+  //  (ii) at most 10% of voiced points lie more than 1300 cents above
+  //      it (Sa is the floor of a one-octave exercise; a candidate an
+  //      octave too low turns the scale into a two-octave span).
+  // The lowest qualifying cluster wins. Both single-criterion rules
+  // have a demonstrated failure:
+  //  * Lowest cluster (pre-2026-10-11): autocorrelation octave-down
+  //    "ghost" samples form a sparse cluster below the true Sa
+  //    (device: 95.45 Hz for a ~191 Hz Sa) — any ghost presence won.
+  //  * Densest cluster: on an avroh-only take, lower/upper Sa counts
+  //    can tip either way (VM probe: upper 34 vs lower 33 -> 392 Hz).
+  // Counts alone also tie at exactly 50% (30-point unit contour:
+  // ghost 2 vs true 4) — the span rule (ii) is what rejects that
+  // ghost: 13% of its points sit >1300c above it, vs ~0% for a true
+  // Sa. On real contours (200+ points) both margins are wide.
+  // (Ghosts larger than half the true cluster AND in-span would
+  // still win — that is detector territory, plan 1.3.)
   saSamples.sort();
-  final lowestCluster = <double>[saSamples.first];
+  final clusters = <List<double>>[<double>[saSamples.first]];
   for (var i = 1; i < saSamples.length; i++) {
     final gapCents = centsFromSa(saSamples[i], saSamples[i - 1]);
-    if (gapCents > 100.0) break;
-    lowestCluster.add(saSamples[i]);
+    if (gapCents > 100.0) clusters.add(<double>[]);
+    clusters.last.add(saSamples[i]);
   }
-  return _median(lowestCluster);
+  var maxCount = 0;
+  for (final c in clusters) {
+    if (c.length > maxCount) maxCount = c.length;
+  }
+  List<double> densest = clusters.first;
+  for (final c in clusters) {
+    if (c.length > densest.length) densest = c;
+  }
+  for (final c in clusters) {
+    if (c.length * 2 < maxCount) continue;
+    final median = _median(c);
+    var above = 0;
+    for (final f in voiced) {
+      if (centsFromSa(f, median) > 1300.0) above++;
+    }
+    if (above * 10 <= voiced.length) return median;
+  }
+  return _median(densest);
 }
 
 /// Pitch class of [freqHz] in cents (0..1200), relative to a fixed
