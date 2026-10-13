@@ -267,6 +267,9 @@ class _PracticeScreenState extends State<PracticeScreen>
                       Colors.green,
                       _audioService.isPlaying,
                       () => _playReferenceAudio(),
+                      enabled: !_audioService.isRecording &&
+                          !_audioService.isPlaying &&
+                          !_isAnalyzing,
                     ),
                     _controlButton(
                       'Stop',
@@ -274,6 +277,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                       Colors.red,
                       false,
                       () => _stopReferenceAudio(),
+                      enabled: !_audioService.isRecording,
                     ),
                   ],
                 ),
@@ -285,11 +289,18 @@ class _PracticeScreenState extends State<PracticeScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _controlButton(
-                      'Record Practice',
-                      Icons.fiber_manual_record,
-                      Colors.orange,
+                      _audioService.isRecording
+                          ? 'Stop Recording'
+                          : 'Record Practice',
+                      _audioService.isRecording
+                          ? Icons.stop
+                          : Icons.fiber_manual_record,
+                      _audioService.isRecording
+                          ? Colors.red
+                          : Colors.orange,
                       _audioService.isRecording,
                       () => _toggleRecording(),
+                      enabled: !_audioService.isPlaying && !_isAnalyzing,
                     ),
                     _controlButton(
                       _hasRecording ? 'Analyze Audio' : 'Record First',
