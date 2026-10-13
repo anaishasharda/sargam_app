@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:sargam_app/services/audio_service.dart';
 import 'package:sargam_app/services/audio_analysis_service.dart';
 import 'package:sargam_app/services/app_state_service.dart';
-import 'package:sargam_app/services/ai_analysis_service.dart';
 import 'package:sargam_app/services/normalized_compare.dart';
 import 'package:sargam_app/services/sa_pitch.dart';
 
@@ -72,7 +71,7 @@ class _PracticeScreenState extends State<PracticeScreen>
 
   int _selectedAnalysisTab = 0; // 0 for Algorithmic, 1 for AI
   AIFeedbackResult? _aiFeedback;
-  bool _isFetchingAIFeedback = false;
+  final bool _isFetchingAIFeedback = false;
   String? _aiFeedbackError;
 
   late AnimationController _pulseController;
@@ -1379,8 +1378,6 @@ class _PracticeScreenState extends State<PracticeScreen>
         );
       }
 
-      _fetchAIFeedback();
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Analysis complete! Check your results below.'),
@@ -1402,36 +1399,6 @@ class _PracticeScreenState extends State<PracticeScreen>
           duration: const Duration(seconds: 3),
         ),
       );
-    }
-  }
-
-  Future<void> _fetchAIFeedback() async {
-    if (_recordedAudioPath == null) return;
-    setState(() {
-      _isFetchingAIFeedback = true;
-      _aiFeedback = null;
-      _aiFeedbackError = null;
-    });
-
-    try {
-      final aiFeedbackResult = await AIAnalysisService().getAIFeedback(
-        userAudioPath: _recordedAudioPath!,
-        expectedNotes: widget.ragaData.notes,
-        ragaName: widget.ragaData.name,
-      );
-      if (mounted) {
-        setState(() {
-          _aiFeedback = aiFeedbackResult;
-          _isFetchingAIFeedback = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _aiFeedbackError = 'Failed to generate AI feedback: $e';
-          _isFetchingAIFeedback = false;
-        });
-      }
     }
   }
 
@@ -1574,13 +1541,13 @@ class _PracticeScreenState extends State<PracticeScreen>
         overallAccuracy: _lastFeedback?.overallAccuracy,
         tempoAccuracy: _lastFeedback?.tempoAccuracy,
         rhythmAccuracy: _lastFeedback?.rhythmAccuracy,
-        // Populate new detailed fields from AI feedback if available
-        avgPitch: _aiFeedback?.pitch ?? _userCharacteristics?.pitch,
+        // Populate detailed fields from the local analysis only
+        avgPitch: _userCharacteristics?.pitch,
         avgVolume: null, // Volume parameter is removed per request
-        bpm: _aiFeedback?.tempo ?? _userCharacteristics?.tempo,
-        detectedNotes: _aiFeedback?.detectedNotes ?? _userCharacteristics?.notes,
-        brightness: _aiFeedback?.brightness ?? _userCharacteristics?.spectralCentroid,
-        stability: _aiFeedback?.stability ?? _userCharacteristics?.qualityScore,
+        bpm: _userCharacteristics?.tempo,
+        detectedNotes: _userCharacteristics?.notes,
+        brightness: _userCharacteristics?.spectralCentroid,
+        stability: _userCharacteristics?.qualityScore,
       );
 
       await appState.addPracticeSession(practiceSession);
@@ -1597,12 +1564,12 @@ class _PracticeScreenState extends State<PracticeScreen>
           notes: notes,
           pitchAccuracy: _lastFeedback?.pitchAccuracy.round() ?? 75,
           practiceTime: practiceTime,
-          avgPitch: _aiFeedback?.pitch ?? _userCharacteristics?.pitch,
+          avgPitch: _userCharacteristics?.pitch,
           avgVolume: null,
-          bpm: _aiFeedback?.tempo ?? _userCharacteristics?.tempo,
-          detectedNotes: _aiFeedback?.detectedNotes ?? _userCharacteristics?.notes,
-          brightness: _aiFeedback?.brightness ?? _userCharacteristics?.spectralCentroid,
-          stability: _aiFeedback?.stability ?? _userCharacteristics?.qualityScore,
+          bpm: _userCharacteristics?.tempo,
+          detectedNotes: _userCharacteristics?.notes,
+          brightness: _userCharacteristics?.spectralCentroid,
+          stability: _userCharacteristics?.qualityScore,
         );
 
         await appState.addJournalEntry(journalEntry);
