@@ -214,26 +214,30 @@ class AudioAnalysisService {
       // the raga-constrained sung sets (non-raga notes impossible).
       var swaraDiagnosis = const <SwaraDiagnosis>[];
       List<String>? constrainedMissed;
+      // The diagnosis itself needs only the student's Sa and contour;
+      // the reference contributes only extra missed-note candidates
+      // when its Sa and contour are available.
       if (table != null &&
           userSaHz != null &&
           userSaHz > 0 &&
-          referenceSaHz != null &&
-          referenceSaHz > 0 &&
-          user.pitchTrajectory.isNotEmpty &&
-          reference.pitchTrajectory.isNotEmpty) {
+          user.pitchTrajectory.isNotEmpty) {
         swaraDiagnosis =
             diagnoseSwara(user.pitchTrajectory, userSaHz, table);
         print('Swara diagnosis: ${swaraDiagnosis.join(', ')}');
         final sungUser =
             constrainedSungNotes(user.pitchTrajectory, userSaHz, table);
-        final sungRef = constrainedSungNotes(
-            reference.pitchTrajectory, referenceSaHz, table);
         final missedSet = <String>{};
         for (final n in expectedNotes) {
           if (!sungUser.contains(n)) missedSet.add(n);
         }
-        for (final n in sungRef) {
-          if (!sungUser.contains(n)) missedSet.add(n);
+        if (referenceSaHz != null &&
+            referenceSaHz > 0 &&
+            reference.pitchTrajectory.isNotEmpty) {
+          final sungRef = constrainedSungNotes(
+              reference.pitchTrajectory, referenceSaHz, table);
+          for (final n in sungRef) {
+            if (!sungUser.contains(n)) missedSet.add(n);
+          }
         }
         constrainedMissed = missedSet.toList();
       }

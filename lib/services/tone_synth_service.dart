@@ -101,9 +101,10 @@ class ToneSynthService {
     required List<String> tokens,
     required int bpm,
     required int transposeSemitones,
+    double? baseSaHz,
   }) {
     final secPerBeat = 60.0 / bpm;
-    final baseSa = baseSaFor(transposeSemitones);
+    final baseSa = baseSaHz ?? baseSaFor(transposeSemitones);
     final notes = <TargetNote>[];
     var t = 0.0;
     for (final token in tokens) {
@@ -130,11 +131,13 @@ class ToneSynthService {
     required List<String> tokens,
     required int bpm,
     required int transposeSemitones,
+    double? baseSaHz,
   }) async {
     final track = buildTrack(
       tokens: tokens,
       bpm: bpm,
       transposeSemitones: transposeSemitones,
+      baseSaHz: baseSaHz,
     );
     final wavBytes = _synthesizeWav(track);
 

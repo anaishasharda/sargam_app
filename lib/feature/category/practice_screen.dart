@@ -1182,10 +1182,12 @@ class _PracticeScreenState extends State<PracticeScreen>
       // piano notes through the speaker. On iOS, this triggers the system's
       // echo cancellation which suppresses the microphone input to near-zero,
       // making pitch detection impossible.
+      final storedSaHz = context.read<AppStateService>().currentUser?.baseSaHz;
       final track = _toneSynth.buildTrack(
         tokens: tokens,
         bpm: _bpm,
         transposeSemitones: _transpose,
+        baseSaHz: storedSaHz,
       );
 
       // Start recording AFTER building the track (mic-only, no playback).
@@ -1638,16 +1640,19 @@ class _PracticeScreenState extends State<PracticeScreen>
 
   Future<void> _playReferenceAudio() async {
     if (widget.isAlankar) {
+      final storedSaHz = context.read<AppStateService>().currentUser?.baseSaHz;
       final tokens = withDescendingMirror(widget.alankar!.pattern);
       final track = await _toneSynth.playPattern(
         tokens: tokens,
         bpm: _bpm,
         transposeSemitones: _transpose,
+        baseSaHz: storedSaHz,
       );
       setState(() {
         _targetTrack = track;
       });
     } else {
+      final storedSaHz = context.read<AppStateService>().currentUser?.baseSaHz;
       await _audioService.playAudio(
         widget.audioPath,
         ragaName: widget.ragaData.name,
@@ -1665,6 +1670,7 @@ class _PracticeScreenState extends State<PracticeScreen>
           tokens: widget.ragaData.notes,
           bpm: _bpm,
           transposeSemitones: _transpose,
+          baseSaHz: storedSaHz,
         );
       });
     }
