@@ -321,4 +321,51 @@ void main() {
       expect(sung.contains('Ma'), isFalse);
     });
   });
+  driftTests();
+}
+
+void driftTests() {
+  group('checkSaDrift (plan 3c core)', () {
+    const noiseA = <double>[0, 5, -5, 10, -10];
+    const scale = <double>[0, 200, 400, 700, 900, 1200];
+
+    test('null when there is no stored Sa', () {
+      final contour = buildContour(207.65, scale, noiseA);
+      expect(checkSaDrift(userTrajectoryHz: contour, storedSaHz: null),
+          isNull);
+      expect(checkSaDrift(userTrajectoryHz: contour, storedSaHz: 0),
+          isNull);
+    });
+
+    test('null when the take has no voiced pitch', () {
+      expect(checkSaDrift(userTrajectoryHz: const [], storedSaHz: 207.65),
+          isNull);
+      expect(
+          checkSaDrift(
+              userTrajectoryHz: const [0.0, 0.0, 0.0], storedSaHz: 207.65),
+          isNull);
+    });
+
+    test('in-tune take: no drift, small deviation', () {
+      final contour = buildContour(207.65, scale, noiseA);
+      final r = checkSaDrift(userTrajectoryHz: contour, storedSaHz: 207.65)!;
+      expect(r.drifted, isFalse);
+      expect(r.deviationCents.abs(), lessThan(25));
+    });
+
+    test('take sung a whole tone high: drift flagged', () {
+      final contour = buildContour(233.08, scale, noiseA);
+      final r = checkSaDrift(userTrajectoryHz: contour, storedSaHz: 207.65)!;
+      expect(r.drifted, isTrue);
+      expect(r.deviationCents, greaterThan(150));
+    });
+
+    test('take sung ~40c flat: under threshold, no drift', () {
+      final flatSa = 207.65 * 0.97716; // ~ -40 cents
+      final contour = buildContour(flatSa, scale, noiseA);
+      final r = checkSaDrift(userTrajectoryHz: contour, storedSaHz: 207.65)!;
+      expect(r.drifted, isFalse);
+      expect(r.deviationCents, lessThan(-25));
+    });
+  });
 }

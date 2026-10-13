@@ -341,3 +341,55 @@ Set<String> constrainedSungNotes(
         d.swara,
   };
 }
+
+/// Outcome of a same-session Sa drift check (plan 3c, core).
+class SaDriftCheck {
+  /// The student's stored Sa (Hz).
+  final double storedSaHz;
+
+  /// Sa inferred from today's take (Hz).
+  final double todaysSaHz;
+
+  /// Signed deviation of today's Sa from the stored Sa, in cents.
+  final double deviationCents;
+
+  /// True when |deviation| exceeds the recalibration threshold (50c).
+  final bool drifted;
+
+  const SaDriftCheck({
+    required this.storedSaHz,
+    required this.todaysSaHz,
+    required this.deviationCents,
+    required this.drifted,
+  });
+
+  @override
+  String toString() =>
+      'SaDriftCheck(stored ${storedSaHz.toStringAsFixed(2)} Hz, '
+      'today ${todaysSaHz.toStringAsFixed(2)} Hz, '
+      '${deviationCents >= 0 ? '+' : ''}${deviationCents.toStringAsFixed(0)}c, '
+      'drifted: $drifted)';
+}
+
+/// Plan 3c core: compare the Sa inferred from today's take against the
+/// stored Sa. Returns null when no verdict is possible (no stored Sa, or
+/// the take has no voiced pitch to infer a tonic from). The UI prompt
+/// that acts on a drifted verdict is plumbed in separately, after the
+/// calibration screen (3b) exists to route to.
+SaDriftCheck? checkSaDrift({
+  required List<double> userTrajectoryHz,
+  required double? storedSaHz,
+}) {
+  if (storedSaHz == null || storedSaHz <= 0) return null;
+  final todaysSaHz = estimateSaFromContour(userTrajectoryHz);
+  if (todaysSaHz <= 0) return null;
+  return SaDriftCheck(
+    storedSaHz: storedSaHz,
+    todaysSaHz: todaysSaHz,
+    deviationCents: centsFromSa(todaysSaHz, storedSaHz),
+    drifted: saDrifted(
+      storedSaHz: storedSaHz,
+      todaysInferredSaHz: todaysSaHz,
+    ),
+  );
+}
