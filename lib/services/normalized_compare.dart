@@ -242,3 +242,102 @@ double _median(List<double> values) {
       ? sorted[mid]
       : (sorted[mid - 1] + sorted[mid]) / 2.0;
 }
+
+// ---------------------------------------------------------------------------
+// Per-swara diagnosis + constrained note sets (plan 1.2)
+// ---------------------------------------------------------------------------
+
+/// A swara needs at least this many contour points before it counts as
+/// sung: 2% of the voiced points, with an absolute floor of 3.
+int _minSwaraPoints(int voicedCount) {
+  final share = (voicedCount * 0.02).ceil();
+  return share > 3 ? share : 3;
+}
+
+/// Bucket voiced contour points by their nearest swara in [table],
+/// keeping each point's signed deviation from that swara. Points are
+/// assigned by nearest swara with no band limit, so a consistently
+/// wrong note lands in its nearest swara's bucket with a large
+/// deviation — that is what diagnoseSwara's wrongNote status reads.
+Map<String, List<double>> _bucketBySwara(
+  List<double> contour,
+  double saHz,
+  RagaSwaraTable table,
+) {
+  final buckets = <String, List<double>>{
+    for (final s in table.swaras) s.name: <double>[],
+  };
+  for (final f in contour) {
+    if (f <= 0) continue;
+    final match = nearestSwara(centsFromSa(f, saHz), table);
+    buckets[match.swara]!.add(match.deviationCents);
+  }
+  return buckets;
+}
+
+/// Diagnose how each swara of [table] was sung in [userContour],
+/// relative to [userSaHz]: one SwaraDiagnosis per swara of the raga,
+/// in table order. Returns an empty list when there is nothing to
+/// diagnose (no Sa, or no voiced points).
+List<SwaraDiagnosis> diagnoseSwara(
+  List<double> userContour,
+  double userSaHz,
+  RagaSwaraTable table,
+) {
+  if (userSaHz <= 0) return const [];
+  final voiced = userContour.where((f) => f > 0).length;
+  if (voiced == 0) return const [];
+  final buckets = _bucketBySwara(userContour, userSaHz, table);
+  final minPoints = _minSwaraPoints(voiced);
+  final out = <SwaraDiagnosis>[];
+  for (final s in table.swaras) {
+    final devs = buckets[s.name]!;
+    if (devs.length < minPoints) {
+      out.add(SwaraDiagnosis(
+        swara: s.name,
+        medianDeviationCents: 0.0,
+        pointCount: devs.length,
+        status: SwaraDiagnosis.statusNotSung,
+      ));
+      continue;
+    }
+    final median = _median(devs);
+    // Epsilon-tolerant edges: a deviation constructed at exactly the
+    // band edge comes back from the Hz roundtrip a hair over or under,
+    // and the classification must not hinge on the ninth decimal.
+    const eps = 1e-6;
+    final status = median.abs() <= 25.0 + eps
+        ? SwaraDiagnosis.statusInTune
+        : median.abs() >= 75.0 - eps
+            ? SwaraDiagnosis.statusWrongNote
+            : median < 0
+                ? SwaraDiagnosis.statusFlat
+                : SwaraDiagnosis.statusSharp;
+    out.add(SwaraDiagnosis(
+      swara: s.name,
+      medianDeviationCents: median,
+      pointCount: devs.length,
+      status: status,
+    ));
+  }
+  return out;
+}
+
+/// The raga swaras recognisably sung in [contour] relative to [saHz]:
+/// diagnosed in tune, flat, or sharp. A swara that was not sung, or was
+/// replaced by a wrong note, is absent — so set differences against
+/// the expected notes give musically meaningful missed notes, and
+/// notes outside the raga can never appear.
+Set<String> constrainedSungNotes(
+  List<double> contour,
+  double saHz,
+  RagaSwaraTable table,
+) {
+  return {
+    for (final d in diagnoseSwara(contour, saHz, table))
+      if (d.status == SwaraDiagnosis.statusInTune ||
+          d.status == SwaraDiagnosis.statusFlat ||
+          d.status == SwaraDiagnosis.statusSharp)
+        d.swara,
+  };
+}

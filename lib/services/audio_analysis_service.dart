@@ -11,6 +11,7 @@ import 'package:fftea/fftea.dart';
 import '../models/audio_characteristics.dart';
 import '../models/audio_feedback.dart';
 import 'normalized_compare.dart';
+import 'sa_pitch.dart';
 
 class AudioAnalysisService {
   static final AudioAnalysisService _instance =
@@ -102,6 +103,7 @@ class AudioAnalysisService {
     List<String> expectedNotes, {
     double? userSaHz,
     double? referenceSaHz,
+    RagaSwaraTable? table,
   }) async {
     try {
       print('\n=== Audio Comparison ===');
@@ -207,15 +209,45 @@ class AudioAnalysisService {
         missedNotes,
       );
 
+      // 1.2: when scoring ran Sa-normalized with a raga table, diagnose
+      // each swara from the user contour and rebuild missed notes from
+      // the raga-constrained sung sets (non-raga notes impossible).
+      var swaraDiagnosis = const <SwaraDiagnosis>[];
+      List<String>? constrainedMissed;
+      if (table != null &&
+          userSaHz != null &&
+          userSaHz > 0 &&
+          referenceSaHz != null &&
+          referenceSaHz > 0 &&
+          user.pitchTrajectory.isNotEmpty &&
+          reference.pitchTrajectory.isNotEmpty) {
+        swaraDiagnosis =
+            diagnoseSwara(user.pitchTrajectory, userSaHz, table);
+        print('Swara diagnosis: ${swaraDiagnosis.join(', ')}');
+        final sungUser =
+            constrainedSungNotes(user.pitchTrajectory, userSaHz, table);
+        final sungRef = constrainedSungNotes(
+            reference.pitchTrajectory, referenceSaHz, table);
+        final missedSet = <String>{};
+        for (final n in expectedNotes) {
+          if (!sungUser.contains(n)) missedSet.add(n);
+        }
+        for (final n in sungRef) {
+          if (!sungUser.contains(n)) missedSet.add(n);
+        }
+        constrainedMissed = missedSet.toList();
+      }
+
       return AudioFeedback(
         pitchAccuracy: pitchAccuracy,
         tempoAccuracy: tempoAccuracy,
         rhythmAccuracy: rhythmAccuracy,
         overallAccuracy: overallAccuracy,
-        missedNotes: missedNotes,
+        missedNotes: constrainedMissed ?? missedNotes,
         suggestions: suggestions,
         overallFeedback: overallFeedback,
         characteristics: user,
+        swaraDiagnosis: swaraDiagnosis,
       );
     } catch (e) {
       print('Error in compareAudio: $e');

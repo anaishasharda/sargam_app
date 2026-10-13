@@ -7,6 +7,7 @@ import 'package:sargam_app/services/audio_analysis_service.dart';
 import 'package:sargam_app/services/app_state_service.dart';
 import 'package:sargam_app/services/ai_analysis_service.dart';
 import 'package:sargam_app/services/normalized_compare.dart';
+import 'package:sargam_app/services/sa_pitch.dart';
 
 import '../../models/audio_feedback.dart';
 import '../../models/audio_characteristics.dart';
@@ -1338,6 +1339,7 @@ class _PracticeScreenState extends State<PracticeScreen>
         referenceSaHz: estimatedReferenceSaHz > 0
             ? estimatedReferenceSaHz
             : null,
+        table: RagaSwaraTable.forRaga(widget.ragaData.name),
       );
       print('Comparison complete');
 

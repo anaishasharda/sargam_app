@@ -138,6 +138,23 @@ class RagaSwaraTable {
   final String ragaName;
   final List<SwaraDef> swaras;
   const RagaSwaraTable(this.ragaName, this.swaras);
+
+  /// Look up a raga's swara table by name (case-insensitive; a leading
+  /// "Raag" is ignored, and the Bhopali/Bhoopali spellings both match).
+  /// Returns null for a raga with no table yet — callers fall back to
+  /// legacy behaviour. Register new ragas by adding their table
+  /// constant here.
+  static RagaSwaraTable? forRaga(String name) {
+    var key = name.trim().toLowerCase();
+    if (key.startsWith('raag ')) key = key.substring(5).trim();
+    switch (key) {
+      case 'bhopali':
+      case 'bhoopali':
+        return bhopaliTable;
+      default:
+        return null;
+    }
+  }
 }
 
 const bhopaliTable = RagaSwaraTable('Bhopali', [
@@ -206,4 +223,52 @@ double _median(List<double> values) {
   return sorted.length.isOdd
       ? sorted[mid]
       : (sorted[mid - 1] + sorted[mid]) / 2.0;
+}
+
+// ---------------------------------------------------------------------------
+// Per-swara diagnosis (plan 1.2)
+// ---------------------------------------------------------------------------
+
+/// How one swara of a raga was sung in a take, relative to the singer's
+/// Sa. Produced by diagnoseSwara in normalized_compare.dart; consumed by
+/// the student feedback layer.
+class SwaraDiagnosis {
+  /// Median deviation within the in-tune band (<= 25 cents).
+  static const String statusInTune = 'inTune';
+
+  /// Median deviation beyond the in-tune band but still nearest this
+  /// swara — flat (negative deviation) or sharp (positive).
+  static const String statusFlat = 'flat';
+  static const String statusSharp = 'sharp';
+
+  /// Too few points near this swara to call it sung at all.
+  static const String statusNotSung = 'notSung';
+
+  /// Points cluster nearer a different pitch class than this swara
+  /// (median |deviation| >= 75 cents): a wrong note or variant
+  /// (e.g. komal Ga in Bhopali), not a tuning error.
+  static const String statusWrongNote = 'wrongNote';
+
+  final String swara;
+
+  /// Signed median deviation in cents from the swara's exact position
+  /// (negative = flat). 0.0 when status is notSung.
+  final double medianDeviationCents;
+
+  /// Voiced contour points whose nearest swara this is.
+  final int pointCount;
+
+  final String status;
+
+  const SwaraDiagnosis({
+    required this.swara,
+    required this.medianDeviationCents,
+    required this.pointCount,
+    required this.status,
+  });
+
+  @override
+  String toString() =>
+      '$swara: $status (${medianDeviationCents.toStringAsFixed(0)}c, '
+      '$pointCount pts)';
 }

@@ -1,4 +1,5 @@
 import 'audio_characteristics.dart';
+import '../services/sa_pitch.dart';
 
 class AudioFeedback {
   final double pitchAccuracy;
@@ -8,6 +9,7 @@ class AudioFeedback {
   final List<String> missedNotes;
   final List<String> suggestions;
   final String overallFeedback;
+  final List<SwaraDiagnosis> swaraDiagnosis;
   final AudioCharacteristics? characteristics;
 
   AudioFeedback({
@@ -19,6 +21,7 @@ class AudioFeedback {
     required this.suggestions,
     required this.overallFeedback,
     this.characteristics,
+    this.swaraDiagnosis = const [],
   });
 
   /// Create a copy with updated values
@@ -31,6 +34,7 @@ class AudioFeedback {
     List<String>? suggestions,
     String? overallFeedback,
     AudioCharacteristics? characteristics,
+    List<SwaraDiagnosis>? swaraDiagnosis,
   }) {
     return AudioFeedback(
       pitchAccuracy: pitchAccuracy ?? this.pitchAccuracy,
@@ -41,6 +45,7 @@ class AudioFeedback {
       suggestions: suggestions ?? this.suggestions,
       overallFeedback: overallFeedback ?? this.overallFeedback,
       characteristics: characteristics ?? this.characteristics,
+      swaraDiagnosis: swaraDiagnosis ?? this.swaraDiagnosis,
     );
   }
 

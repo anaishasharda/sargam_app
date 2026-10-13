@@ -203,4 +203,122 @@ void main() {
       expect(estimateSaFromContour(const [0, 0, 0]), 0);
     });
   });
+
+  group('RagaSwaraTable.forRaga (1.2)', () {
+    test('known spellings resolve to the Bhopali table', () {
+      expect(RagaSwaraTable.forRaga('Bhopali'), same(bhopaliTable));
+      expect(RagaSwaraTable.forRaga('bhoopali'), same(bhopaliTable));
+      expect(RagaSwaraTable.forRaga('Raag Bhopali'), same(bhopaliTable));
+      expect(RagaSwaraTable.forRaga(' BHOPALI '), same(bhopaliTable));
+    });
+
+    test('unknown raga -> null (legacy fallback)', () {
+      expect(RagaSwaraTable.forRaga('Yaman'), isNull);
+      expect(RagaSwaraTable.forRaga(''), isNull);
+    });
+  });
+
+  group('diagnoseSwara (1.2)', () {
+    final fullScale = <double>[...aaroh, ...avroh];
+
+    SwaraDiagnosis byName(List<SwaraDiagnosis> ds, String name) =>
+        ds.firstWhere((d) => d.swara == name);
+
+    test('perfect take: every swara in tune, Sa pools both octaves', () {
+      final ds = diagnoseSwara(
+          buildContour(196.0, fullScale, noiseA), 196.0, bhopaliTable);
+      expect(ds.length, 5);
+      for (final d in ds) {
+        expect(d.status, SwaraDiagnosis.statusInTune, reason: '$d');
+      }
+      expect(byName(ds, 'Sa').pointCount, 20); // 4 Sa-position notes x5
+      expect(byName(ds, 'Ga').pointCount, 10);
+    });
+
+    test('Ga flat by 30: Ga flat ~-30, everything else in tune', () {
+      final flat = <double>[
+        0, 200, 370, 700, 900, 1200, 1200, 900, 700, 370, 200, 0
+      ];
+      final ds = diagnoseSwara(
+          buildContour(196.0, flat, noiseA), 196.0, bhopaliTable);
+      final ga = byName(ds, 'Ga');
+      expect(ga.status, SwaraDiagnosis.statusFlat, reason: '$ga');
+      expect(ga.medianDeviationCents, closeTo(-30.0, 3.0));
+      expect(byName(ds, 'Pa').status, SwaraDiagnosis.statusInTune);
+      // A flat Ga still counts as sung Ga.
+      expect(
+          constrainedSungNotes(
+              buildContour(196.0, flat, noiseA), 196.0, bhopaliTable),
+          contains('Ga'));
+    });
+
+    test('Ga replaced by a 500c note: wrongNote, and Ga not sung', () {
+      final wrong = <double>[
+        0, 200, 500, 700, 900, 1200, 1200, 900, 700, 500, 200, 0
+      ];
+      final contour = buildContour(196.0, wrong, noiseA);
+      final ds = diagnoseSwara(contour, 196.0, bhopaliTable);
+      final ga = byName(ds, 'Ga');
+      expect(ga.status, SwaraDiagnosis.statusWrongNote, reason: '$ga');
+      expect(ga.medianDeviationCents, closeTo(100.0, 3.0));
+      expect(constrainedSungNotes(contour, 196.0, bhopaliTable),
+          {'Sa', 'Re', 'Pa', 'Dha'});
+    });
+
+    test('missing Dha: notSung with zero points', () {
+      final noDha = <double>[0, 200, 400, 700, 1200, 1200, 700, 400, 200, 0];
+      final ds = diagnoseSwara(
+          buildContour(196.0, noDha, noiseA), 196.0, bhopaliTable);
+      final dha = byName(ds, 'Dha');
+      expect(dha.status, SwaraDiagnosis.statusNotSung);
+      expect(dha.pointCount, 0);
+    });
+
+    test('Re sharp by 45: sharp status', () {
+      final sharp = <double>[
+        0, 245, 400, 700, 900, 1200, 1200, 900, 700, 400, 245, 0
+      ];
+      final ds = diagnoseSwara(
+          buildContour(196.0, sharp, noiseA), 196.0, bhopaliTable);
+      expect(byName(ds, 'Re').status, SwaraDiagnosis.statusSharp);
+    });
+
+    test('status boundaries on exact-deviation contours', () {
+      List<double> held(double cents) =>
+          List.filled(12, freqFromCents(196.0, cents));
+      String gaStatus(double cents) => byName(
+              diagnoseSwara(held(cents), 196.0, bhopaliTable), 'Ga')
+          .status;
+      expect(gaStatus(400 - 25), SwaraDiagnosis.statusInTune);
+      expect(gaStatus(400 + 25), SwaraDiagnosis.statusInTune);
+      expect(gaStatus(400 - 40), SwaraDiagnosis.statusFlat);
+      expect(gaStatus(400 + 74), SwaraDiagnosis.statusSharp);
+      expect(gaStatus(400 - 75), SwaraDiagnosis.statusWrongNote);
+      expect(gaStatus(400 + 75), SwaraDiagnosis.statusWrongNote);
+    });
+
+    test('degenerate inputs: no diagnosis, no throw', () {
+      expect(diagnoseSwara(const [], 196.0, bhopaliTable), isEmpty);
+      expect(diagnoseSwara(const [0.0, 0.0], 196.0, bhopaliTable), isEmpty);
+      expect(
+          diagnoseSwara(
+              buildContour(196.0, fullScale, noiseA), 0.0, bhopaliTable),
+          isEmpty);
+    });
+
+    test('stray wrong-region points cannot create a non-raga note', () {
+      // A few stray points in the 500c "Ma region" on top of a correct
+      // scale: the device bug reported Ma as missed in Bhopali. The
+      // constrained set is built only from table swaras, so Ma is
+      // impossible — and a handful of strays must not flip Ga's own
+      // diagnosis either (median, not mean). A *dominant* wrong cluster
+      // flipping Ga to wrongNote is the designed behaviour, pinned by
+      // the 500c sequence test above.
+      final contour = buildContour(196.0, fullScale, noiseA)
+        ..addAll(List.filled(6, freqFromCents(196.0, 500)));
+      final sung = constrainedSungNotes(contour, 196.0, bhopaliTable);
+      expect(sung, {'Sa', 'Re', 'Ga', 'Pa', 'Dha'});
+      expect(sung.contains('Ma'), isFalse);
+    });
+  });
 }
