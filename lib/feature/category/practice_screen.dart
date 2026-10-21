@@ -439,12 +439,14 @@ class _PracticeScreenState extends State<PracticeScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurpleAccent,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey,
+                      disabledForegroundColor: Colors.white70,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                       elevation: 8,
                     ),
-                    onPressed: () => _logPractice(),
+                    onPressed: _lastFeedback == null ? null : () => _logPractice(),
                     icon: const Icon(Icons.book),
                     label: const Text(
                       'Log Practice Session',
