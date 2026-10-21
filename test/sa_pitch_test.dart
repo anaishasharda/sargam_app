@@ -31,7 +31,7 @@ void main() {
       // A held Sa with tiny wobble: 440Hz +/- 0.5%
       final samples =
           List<double>.generate(200, (i) => 440.0 * (1 + 0.005 * sin(i)));
-      final take = analyzeSaTake(samples);
+      final take = analyzeSaTake(samples)!;
       expect(take.isStable, isTrue);
       expect(take.medianHz, closeTo(440.0, 5.0));
     });
@@ -40,8 +40,16 @@ void main() {
       // Drift of +/- 4% (~ +/- 68 cents) — a kid sliding around
       final samples =
           List<double>.generate(200, (i) => 440.0 * (1 + 0.04 * sin(i / 3)));
-      final take = analyzeSaTake(samples);
+      final take = analyzeSaTake(samples)!;
       expect(take.isStable, isFalse);
+    });
+
+    test('empty take is unusable, not a crash', () {
+      expect(analyzeSaTake(const <double>[]), isNull);
+    });
+
+    test('unvoiced take is unusable, not a crash', () {
+      expect(analyzeSaTake(const <double>[0.0, 0.0, -1.0]), isNull);
     });
   });
 

@@ -52,10 +52,12 @@ class SaTakeResult {
 /// Analyze one take from its raw YIN pitch samples (Hz).
 /// The caller should pass only the middle ~2 seconds (attack skipped);
 /// unvoiced/dropout samples (<= 0) are ignored here.
-SaTakeResult analyzeSaTake(List<double> pitchSamplesHz) {
+/// Returns null when the take has no voiced samples — the caller treats
+/// that as an unusable take ("couldn't hear you"), not a crash.
+SaTakeResult? analyzeSaTake(List<double> pitchSamplesHz) {
   final voiced =
       pitchSamplesHz.where((f) => f > 0).toList(growable: false);
-  assert(voiced.isNotEmpty, 'take has no voiced samples');
+  if (voiced.isEmpty) return null;
   final median = _median(voiced);
   final variance = voiced
           .map((f) => pow(centsFromSa(f, median), 2))
