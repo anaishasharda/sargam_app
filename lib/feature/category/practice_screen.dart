@@ -18,6 +18,7 @@ import '../../models/ai_feedback_result.dart';
 import '../../services/tone_synth_service.dart';
 import '../../services/realtime_audio_service.dart';
 import '../../widgets/pitch_graph.dart';
+import '../profile/sa_calibration_screen.dart';
 import 'real_time_audio_analysis.dart';
 import 'audio_characteristics_display.dart';
 
@@ -283,6 +284,59 @@ class _PracticeScreenState extends State<PracticeScreen>
 
                 const SizedBox(height: 24),
 
+                // Plan 3b: without a stored Sa the analysis
+                // cannot be trusted, so recording is gated
+                // until the student sets one. Calibration's
+                // best-try save guarantees an exit.
+                if (context.read<AppStateService>().currentUser?.baseSaHz == null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.deepPurpleAccent.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Your Sa isn\'t set yet',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Set it so your feedback matches your voice — it takes a minute.',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SaCalibrationScreen(),
+                              ),
+                            );
+                            if (mounted) setState(() {});
+                          },
+                          icon: const Icon(Icons.music_note),
+                          label: const Text('Find Your Sa'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
                 // Practice controls
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -299,7 +353,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                           : Colors.orange,
                       _audioService.isRecording,
                       () => _toggleRecording(),
-                      enabled: !_audioService.isPlaying && !_isAnalyzing,
+                      enabled: context.read<AppStateService>().currentUser?.baseSaHz != null && !_audioService.isPlaying && !_isAnalyzing,
                     ),
                     _controlButton(
                       _hasRecording ? 'Analyze Audio' : 'Record First',
