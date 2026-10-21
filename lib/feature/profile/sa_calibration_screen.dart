@@ -72,7 +72,14 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
       await _stopAndAnalyze();
       return;
     }
-    _audioService.startRecording();
+    // startRecording does real async work (permission check, file open,
+    // recorder start) and only then flips isRecording; it reports failure
+    // by leaving isRecording false, never by throwing. It must be awaited
+    // before the state is read — reading it synchronously here raced the
+    // start and showed the permission message on every cold start while
+    // the recorder started anyway (the alternating two-tries bug).
+    await _audioService.startRecording();
+    if (!mounted) return;
     setState(() {
       _isRecording = _audioService.isRecording;
       _message = _isRecording
@@ -105,7 +112,29 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
       return;
     }
     final characteristics = await _analysisService.analyzeAudioFile(path);
-    final result = analyzeSaTake(_middleSlice(characteristics.pitchTrajectory));
+    final slice = _middleSlice(characteristics.pitchTrajectory);
+    final result = analyzeSaTake(slice);
+    // TEMP diagnostic, calibration-stability investigation (2026-10-21):
+    // prints each take's spread so the 25c steadiness limit can be tuned
+    // from real voices instead of guessed. Remove once tuned.
+    final voicedCount = slice.where((s) => s > 0).length;
+    if (result == null) {
+      print('Sa calibration take: no voiced samples '
+          '(slice=${slice.length}, voiced=$voicedCount)');
+    } else {
+      var maxDevCents = 0.0;
+      for (final s in slice) {
+        if (s <= 0) continue;
+        final dev = centsFromSa(s, result.medianHz).abs();
+        if (dev > maxDevCents) maxDevCents = dev;
+      }
+      print('Sa calibration take: '
+          'median=${result.medianHz.toStringAsFixed(2)} Hz, '
+          'stdDev=${result.stdDevCents.toStringAsFixed(1)}c, '
+          'maxDev=${maxDevCents.toStringAsFixed(0)}c, '
+          'stable=${result.isStable} '
+          '(slice=${slice.length}, voiced=$voicedCount)');
+    }
     if (!mounted) return;
     setState(() {
       _isAnalyzing = false;
