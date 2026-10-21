@@ -371,18 +371,46 @@ class SaDriftCheck {
       'drifted: $drifted)';
 }
 
+/// Estimate today's Sa from the contour points that sit in the stored
+/// Sa's pitch class, folded into the stored Sa's octave.
+///
+/// Drift detection does not need blind tonic discovery: the stored Sa
+/// defines the class, and octave ghosts share that class, so they fold
+/// in harmlessly instead of dragging the estimate to a ghost cluster —
+/// the failure estimateSaFromContour showed on a real user take
+/// (84.48 Hz returned for a take sung at the stored 207.65 Hz, while
+/// its per-swara diagnosis read every note within -51..-3 cents).
+/// Returns null when too few points fall in the class window to judge.
+double? _todaysSaFromStoredClass(List<double> contour, double storedSaHz) {
+  final folded = <double>[];
+  for (final f in contour) {
+    if (f <= 0) continue;
+    final pc = ((centsFromSa(f, storedSaHz) + 600) % 1200) - 600;
+    if (pc.abs() <= 100) folded.add(freqFromCents(storedSaHz, pc));
+  }
+  if (folded.length < 5) return null;
+  return _median(folded);
+}
+
 /// Plan 3c core: compare the Sa inferred from today's take against the
 /// stored Sa. Returns null when no verdict is possible (no stored Sa, or
-/// the take has no voiced pitch to infer a tonic from). The UI prompt
-/// that acts on a drifted verdict is plumbed in separately, after the
-/// calibration screen (3b) exists to route to.
+/// too few of the take's points sit in the stored Sa's pitch class).
+/// The UI prompt that acts on a drifted verdict is plumbed in
+/// separately, after the calibration screen (3b) exists to route to.
+///
+/// The estimate is anchored to the stored Sa's pitch class (see
+/// _todaysSaFromStoredClass): it judges takes sung near the stored Sa
+/// precisely, and returns no verdict for a take with too few points in
+/// that class (e.g. sung far from the stored Sa throughout) rather
+/// than guessing a tonic. Such a take's per-swara diagnosis, computed
+/// against the stored Sa, still carries the signal.
 SaDriftCheck? checkSaDrift({
   required List<double> userTrajectoryHz,
   required double? storedSaHz,
 }) {
   if (storedSaHz == null || storedSaHz <= 0) return null;
-  final todaysSaHz = estimateSaFromContour(userTrajectoryHz);
-  if (todaysSaHz <= 0) return null;
+  final todaysSaHz = _todaysSaFromStoredClass(userTrajectoryHz, storedSaHz);
+  if (todaysSaHz == null) return null;
   return SaDriftCheck(
     storedSaHz: storedSaHz,
     todaysSaHz: todaysSaHz,

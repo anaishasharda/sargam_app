@@ -353,11 +353,45 @@ void driftTests() {
       expect(r.deviationCents.abs(), lessThan(25));
     });
 
-    test('take sung a whole tone high: drift flagged', () {
+    test('take sung a whole tone high: no verdict, by design', () {
+      // The anchored estimate only judges takes sung near the stored
+      // Sa. A whole-tone shift leaves almost no points in the stored
+      // pitch class, so checkSaDrift returns null instead of guessing
+      // a tonic; the take's diagnosis against the stored Sa carries
+      // the signal (see checkSaDrift's doc comment).
       final contour = buildContour(233.08, scale, noiseA);
+      expect(checkSaDrift(userTrajectoryHz: contour, storedSaHz: 207.65),
+          isNull);
+    });
+
+    test('take sung ~80c sharp: drift flagged', () {
+      final sharpSa = 207.65 * 1.04729; // ~ +80 cents
+      final contour = buildContour(sharpSa, scale, noiseA);
       final r = checkSaDrift(userTrajectoryHz: contour, storedSaHz: 207.65)!;
       expect(r.drifted, isTrue);
-      expect(r.deviationCents, greaterThan(150));
+      expect(r.deviationCents, greaterThan(50));
+    });
+
+    test('ghost-heavy take at the stored Sa: no drift (84.48 regression)',
+        () {
+      // Regression for the 2026-10-21 device run: a take sung AT the
+      // stored Sa whose contour carries heavy octave-down ghosts read
+      // 'today 84.48 Hz, drifted: true' under blind tonic estimation.
+      final clean = buildContour(207.65, scale, noiseA);
+      final contour = <double>[
+        for (var i = 0; i < clean.length; i++)
+          i % 3 == 0 ? clean[i] / 2 : clean[i],
+      ];
+      final r = checkSaDrift(userTrajectoryHz: contour, storedSaHz: 207.65)!;
+      expect(r.drifted, isFalse);
+      expect(r.deviationCents.abs(), lessThan(25));
+    });
+
+    test('null when no points sit in the stored Sa pitch class', () {
+      final contour = buildContour(207.65, const [200, 400, 700, 900],
+          noiseA);
+      expect(checkSaDrift(userTrajectoryHz: contour, storedSaHz: 207.65),
+          isNull);
     });
 
     test('take sung ~40c flat: under threshold, no drift', () {
