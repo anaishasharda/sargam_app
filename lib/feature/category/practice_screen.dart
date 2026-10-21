@@ -1343,6 +1343,13 @@ class _PracticeScreenState extends State<PracticeScreen>
       print(
         'Sa for comparison - user: $userSaHz Hz, reference estimate: ${estimatedReferenceSaHz.toStringAsFixed(2)} Hz',
       );
+      final driftCheck = checkSaDrift(
+        userTrajectoryHz: _userCharacteristics!.pitchTrajectory,
+        storedSaHz: userSaHz,
+      );
+      if (driftCheck != null) {
+        print('Sa drift check: $driftCheck');
+      }
       final feedback = await _analysisService.compareAudio(
         _referenceCharacteristics!,
         _userCharacteristics!,
