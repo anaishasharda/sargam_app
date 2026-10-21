@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../services/app_state_service.dart';
 import '../../models/user_profile.dart';
 import '../auth/login.dart';
+import 'sa_calibration_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -230,6 +231,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
+            const SizedBox(height: 24),
+
+            // Plan 3b: Sa calibration entry point.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Your Sa',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    user.baseSaHz == null
+                        ? 'Not set yet. Find yours so your feedback matches your voice.'
+                        : 'Your Sa is set. You can redo it any time.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SaCalibrationScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.music_note),
+                    label: Text(
+                      user.baseSaHz == null
+                          ? 'Find Your Sa'
+                          : 'Recalibrate Sa',
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
 
             // Favorite Raga
