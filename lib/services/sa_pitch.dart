@@ -299,3 +299,50 @@ class SwaraDiagnosis {
       '$swara: $status (${medianDeviationCents.toStringAsFixed(0)}c, '
       '$pointCount pts)';
 }
+
+// ---------------------------------------------------------------------------
+// Known-key Sa (plan 3b): note <-> frequency at A440 equal temperament
+// ---------------------------------------------------------------------------
+
+/// Pitch-class names, C first. A note's pitch class is `midi % 12`.
+const List<String> pitchClassNames = [
+  'C',
+  'C#',
+  'D',
+  'D#',
+  'E',
+  'F',
+  'F#',
+  'G',
+  'G#',
+  'A',
+  'A#',
+  'B',
+];
+
+/// Frequency in Hz of a MIDI note number (A440 equal temperament).
+double hzForMidi(int midi) =>
+    (440.0 * pow(2.0, (midi - 69) / 12.0)).toDouble();
+
+/// Nearest MIDI note number for [hz] (A440 equal temperament).
+int nearestMidiForHz(double hz) {
+  assert(hz > 0, 'frequency must be positive');
+  return (69 + 12 * log(hz / 440.0) / ln2).round();
+}
+
+/// Display name of a MIDI note, e.g. 56 -> 'G#3', 60 -> 'C4'.
+String noteNameForMidi(int midi) =>
+    '${pitchClassNames[midi % 12]}${(midi ~/ 12) - 1}';
+
+/// Display name of the note nearest to [hz], e.g. 207.65 -> 'G#3'.
+String noteNameForHz(double hz) => noteNameForMidi(nearestMidiForHz(hz));
+
+/// The three octave candidates offered after a student picks a pitch
+/// class: the class instance nearest A3 (220 Hz), plus the instances an
+/// octave below and above it. The student resolves the octave by ear;
+/// the app never guesses it.
+List<int> candidateMidisForPitchClass(int pitchClass) {
+  assert(pitchClass >= 0 && pitchClass < 12, 'pitch class must be 0..11');
+  final center = pitchClass + 12 * ((57 - pitchClass) / 12).round();
+  return [center - 12, center, center + 12];
+}

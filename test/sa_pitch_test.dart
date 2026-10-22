@@ -190,4 +190,52 @@ void main() {
       expect(m.inBand, isFalse);
     });
   });
+
+  group('known-key helpers (plan 3b)', () {
+    test('hzForMidi matches A440 equal temperament', () {
+      expect(hzForMidi(69), closeTo(440.0, 1e-9));
+      expect(hzForMidi(56), closeTo(207.6523, 0.001)); // G#3
+      expect(hzForMidi(58), closeTo(233.0819, 0.001)); // A#3
+      expect(hzForMidi(44), closeTo(103.8262, 0.001)); // G#2
+    });
+
+    test('nearestMidiForHz finds the closest note', () {
+      expect(nearestMidiForHz(207.65), equals(56));
+      expect(nearestMidiForHz(233.33), equals(58)); // sine-probe value
+      expect(nearestMidiForHz(227.32), equals(58)); // singer's measured Sa
+      expect(nearestMidiForHz(116.67), equals(46)); // halved take -> A#2
+    });
+
+    test('note names use sharps and scientific octave', () {
+      expect(noteNameForMidi(56), equals('G#3'));
+      expect(noteNameForMidi(60), equals('C4'));
+      expect(noteNameForMidi(69), equals('A4'));
+      expect(noteNameForHz(207.65), equals('G#3'));
+      expect(pitchClassNames[8], equals('G#'));
+      expect(pitchClassNames.length, equals(12));
+    });
+
+    test('octave candidates center on the instance nearest 220 Hz', () {
+      expect(candidateMidisForPitchClass(8), equals([44, 56, 68])); // G#
+      expect(candidateMidisForPitchClass(0), equals([48, 60, 72])); // C
+      expect(candidateMidisForPitchClass(11), equals([47, 59, 71])); // B
+      // D# is the exact half-octave tie; the higher center wins.
+      expect(candidateMidisForPitchClass(3), equals([51, 63, 75]));
+    });
+
+    test('every pitch class offers three singable candidates', () {
+      for (var pc = 0; pc < 12; pc++) {
+        final midis = candidateMidisForPitchClass(pc);
+        expect(midis.length, equals(3));
+        expect(midis[1] - midis[0], equals(12));
+        expect(midis[2] - midis[1], equals(12));
+        for (final m in midis) {
+          expect(m % 12, equals(pc));
+          final hz = hzForMidi(m);
+          expect(hz, greaterThan(80.0));
+          expect(hz, lessThan(650.0));
+        }
+      }
+    });
+  });
 }
