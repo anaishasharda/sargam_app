@@ -1,4 +1,5 @@
 // ignore_for_file: avoid_print
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -92,11 +93,19 @@ class _PracticeScreenState extends State<PracticeScreen>
     _analysisService.initialize();
     _realtimeAudio.initialize();
     _requestPermissions();
+    // The Stop button's truthfulness depends on the tone synth's playing
+    // state too; rebuild when it changes (a pattern ends silently).
+    _tonePlayingSub = _toneSynth.player.playingStream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
+  /// Subscription to the tone synth's playing state (see initState).
+  StreamSubscription<bool>? _tonePlayingSub;
 
   @override
   void dispose() {
     if (mounted) {
+      _tonePlayingSub?.cancel();
       _pulseController.dispose();
       
       // Stop any active recording so the mic is freed and state is reset
@@ -275,9 +284,11 @@ class _PracticeScreenState extends State<PracticeScreen>
                       'Stop',
                       Icons.stop,
                       Colors.red,
-                      false,
+                      _audioService.isPlaying || _toneSynth.player.playing,
                       () => _stopReferenceAudio(),
-                      enabled: !_audioService.isRecording,
+                      enabled: !_audioService.isRecording &&
+                          (_audioService.isPlaying ||
+                              _toneSynth.player.playing),
                     ),
                   ],
                 ),
@@ -356,7 +367,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                       enabled: context.read<AppStateService>().currentUser?.baseSaHz != null && !_audioService.isPlaying && !_isAnalyzing,
                     ),
                     _controlButton(
-                      _hasRecording ? 'Analyze Audio' : 'Record First',
+                      'Analyze Audio',
                       Icons.analytics,
                       _hasRecording ? Colors.purple : Colors.grey,
                       _isAnalyzing,
