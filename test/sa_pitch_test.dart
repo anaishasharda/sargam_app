@@ -113,6 +113,30 @@ void main() {
       expect(result, isNull);
     });
 
+    test('a whole-take octave lock does not fail the set', () {
+      // Regression (device, 2026-10-21): three identical 233 Hz sine
+      // takes; the tracker locked one a full octave down (116.67 Hz) and
+      // the unfolded agreement gate rejected the set as 'different'.
+      final result = calibrateSa([take(233.33), take(116.67), take(233.33)]);
+      expect(result, isNotNull);
+      expect(result!.saHz, closeTo(233.33, 0.5));
+      expect(result.agreementCents, lessThan(15.0));
+      expect(result.confidence, 'high');
+    });
+
+    test('an octave-up take folds into the set octave', () {
+      final result = calibrateSa([take(220.0), take(440.0), take(220.0)]);
+      expect(result, isNotNull);
+      expect(result!.saHz, closeTo(220.0, 0.5));
+    });
+
+    test('in-octave disagreement still fails after folding', () {
+      // 246.94 Hz is a whole tone above 220, not an octave: folding must
+      // not manufacture agreement out of genuinely different pitches.
+      final result = calibrateSa([take(220.0), take(220.0), take(246.94)]);
+      expect(result, isNull);
+    });
+
     test('unstable take fails calibration', () {
       final result = calibrateSa([
         take(440.0),

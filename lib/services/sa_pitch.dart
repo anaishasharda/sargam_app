@@ -84,7 +84,8 @@ double _foldToOctave(double cents) => ((cents + 600) % 1200) - 600;
 
 /// A completed calibration: the student's Sa, agreed across takes.
 class SaCalibration {
-  /// Agreed Sa in Hz (median of take medians).
+  /// Agreed Sa in Hz (median of take medians, octave-normalized —
+  /// see [calibrateSa]).
   final double saHz;
 
   /// Worst disagreement among takes, in cents. Lower = more confident.
@@ -107,6 +108,13 @@ class SaCalibration {
 /// Returns null when calibration cannot be trusted:
 /// fewer than 3 takes, any take unstable, or takes disagree beyond
 /// [agreementBandCents]. The caller retries only the failed part.
+///
+/// Agreement is judged on pitch class: the tracker sometimes locks a
+/// whole take an octave off (device evidence, 2026-10-21: one of three
+/// identical 233 Hz sine takes read 116.67 Hz), so every median is first
+/// folded into the anchor (median-of-medians) octave and the proposal is
+/// made in that octave. The student's playback confirmation is the final
+/// check of the octave itself.
 SaCalibration? calibrateSa(
   List<SaTakeResult> takes, {
   double agreementBandCents = 30.0,
@@ -114,9 +122,13 @@ SaCalibration? calibrateSa(
   if (takes.length < 3) return null;
   if (takes.any((t) => !t.isStable)) return null;
   final medians = takes.map((t) => t.medianHz).toList(growable: false);
-  final agreedSa = _median(medians);
+  final anchor = _median(medians);
+  final folded = medians
+      .map((m) => freqFromCents(anchor, _foldToOctave(centsFromSa(m, anchor))))
+      .toList(growable: false);
+  final agreedSa = _median(folded);
   final worst =
-      medians.map((m) => centsFromSa(m, agreedSa).abs()).reduce(max);
+      folded.map((m) => centsFromSa(m, agreedSa).abs()).reduce(max);
   if (worst > agreementBandCents) return null;
   return SaCalibration(
     saHz: agreedSa,
