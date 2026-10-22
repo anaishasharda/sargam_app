@@ -202,7 +202,7 @@ class ToneSynthService {
           env = (noteLen - i) / releaseSamples;
         }
 
-        final v = (sample * env * 0.7 * 32767).clamp(-32767.0, 32767.0);
+        final v = (sample * env * 1.25 * 32767).clamp(-32767.0, 32767.0);
         pcm[start + i] = v.toInt();
       }
     }
