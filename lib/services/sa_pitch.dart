@@ -40,7 +40,8 @@ class SaTakeResult {
   /// Median pitch of the take's stable middle portion, in Hz.
   final double medianHz;
 
-  /// Std dev of the take's samples, in cents relative to [medianHz].
+  /// Std dev of the take's samples, in cents relative to [medianHz],
+  /// computed on octave-folded deviations (see [_foldToOctave]).
   final double stdDevCents;
 
   const SaTakeResult({required this.medianHz, required this.stdDevCents});
@@ -54,13 +55,20 @@ class SaTakeResult {
 /// unvoiced/dropout samples (<= 0) are ignored here.
 /// Returns null when the take has no voiced samples — the caller treats
 /// that as an unusable take ("couldn't hear you"), not a crash.
+///
+/// Steadiness is measured on octave-folded deviations (see
+/// [_foldToOctave]): the pitch tracker intermittently reports a held note
+/// an octave off, and those frames must not count as the singer wobbling.
+/// (Device evidence, 2026-10-21: on a classical singer's steady held Sa at
+/// ~225 Hz, ~40% of frames read an octave off — every take scored
+/// stdDev ~600c and was rejected, while the median stayed true.)
 SaTakeResult? analyzeSaTake(List<double> pitchSamplesHz) {
   final voiced =
       pitchSamplesHz.where((f) => f > 0).toList(growable: false);
   if (voiced.isEmpty) return null;
   final median = _median(voiced);
   final variance = voiced
-          .map((f) => pow(centsFromSa(f, median), 2))
+          .map((f) => pow(_foldToOctave(centsFromSa(f, median)), 2))
           .reduce((a, b) => a + b) /
       voiced.length;
   return SaTakeResult(
@@ -68,6 +76,11 @@ SaTakeResult? analyzeSaTake(List<double> pitchSamplesHz) {
     stdDevCents: sqrt(variance),
   );
 }
+
+/// Fold a cents deviation into [-600, 600): deviations an exact octave
+/// apart become equal. For steadiness only — a take's level is its
+/// (unfolded) median, and the playback confirmation checks it by ear.
+double _foldToOctave(double cents) => ((cents + 600) % 1200) - 600;
 
 /// A completed calibration: the student's Sa, agreed across takes.
 class SaCalibration {

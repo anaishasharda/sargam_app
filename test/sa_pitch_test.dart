@@ -44,6 +44,50 @@ void main() {
       expect(take.isStable, isFalse);
     });
 
+    test('octave-down ghost frames do not make a steady take unstable',
+        () {
+      // Regression (device, 2026-10-21): a classical singer's steady held
+      // Sa at ~225 Hz read ~40% of frames an octave down; the unfolded
+      // stdDev scored ~600c and every take was rejected as 'wobbled'.
+      final samples = <double>[
+        for (var i = 0; i < 100; i++) i % 5 < 2 ? 112.5 : 225.0,
+      ];
+      final take = analyzeSaTake(samples)!;
+      expect(take.medianHz, 225.0);
+      expect(take.isStable, isTrue);
+    });
+
+    test('octave-up ghost frames do not make a steady take unstable', () {
+      final samples = <double>[
+        for (var i = 0; i < 100; i++) i % 10 < 3 ? 360.0 : 180.0,
+      ];
+      final take = analyzeSaTake(samples)!;
+      expect(take.medianHz, 180.0);
+      expect(take.isStable, isTrue);
+    });
+
+    test('in-octave slide still reads unstable after folding', () {
+      // A glide from 200 Hz up a fourth stays inside one octave; folding
+      // must not rescue genuine unsteadiness.
+      final samples = <double>[
+        for (var i = 0; i < 50; i++) 200.0 + i * (67.0 / 49.0),
+      ];
+      final take = analyzeSaTake(samples)!;
+      expect(take.isStable, isFalse);
+    });
+
+    test('vibrato-scale wobble is measured, not folded away', () {
+      // +/-40c sine wobble: sub-octave, so folding changes nothing and the
+      // spread (~28c RMS) still exceeds the 25c steadiness limit.
+      final samples = <double>[
+        for (var i = 0; i < 64; i++)
+          freqFromCents(200.0, 40.0 * sin(2 * pi * i / 16)),
+      ];
+      final take = analyzeSaTake(samples)!;
+      expect(take.stdDevCents, greaterThan(25.0));
+      expect(take.isStable, isFalse);
+    });
+
     test('empty take is unusable, not a crash', () {
       expect(analyzeSaTake(const <double>[]), isNull);
     });
