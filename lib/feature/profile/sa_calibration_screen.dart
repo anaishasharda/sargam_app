@@ -41,6 +41,17 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
 
   SaCalibration? _proposal;
   bool _saved = false;
+
+  // Known-key path (plan 3b-B): the student picks the pitch class their
+  // teacher gave them instead of singing takes. No octave is chosen —
+  // the diagnosis is octave-invariant, so the class's middle-octave
+  // instance is what gets stored, and the proposal offers lower/higher
+  // nudges for playback comfort. _proposalIsKey marks a proposal from
+  // this path so rejecting it returns to the picker instead of touching
+  // the sung flow's failure budget.
+  bool _showKeyPicker = false;
+  int? _keyPitchClass;
+  bool _proposalIsKey = false;
   String _message =
       'Sing your Sa — the home note you sing everything from — and hold '
       'it steady. We will listen three times.';
@@ -198,6 +209,7 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
   void _propose(SaCalibration calibration, {required bool isBestTry}) {
     setState(() {
       _proposal = calibration;
+      _proposalIsKey = false;
       _message = isBestTry
           ? 'Your takes didn\'t quite agree, so here is your best try. '
               'Have a listen — does it sound like your Sa?'
@@ -220,6 +232,14 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
 
   void _rejectProposal() {
     unawaited(_toneSynth.stop());
+    if (_proposalIsKey) {
+      setState(() {
+        _proposal = null;
+        _proposalIsKey = false;
+        _message = 'No problem — pick your pitch again.';
+      });
+      return;
+    }
     setState(() {
       _proposal = null;
       _setsFailed++;
@@ -292,6 +312,86 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
     return '${names[midi % 12]}${(midi ~/ 12) - 1}';
   }
 
+  // --- known-key path (plan 3b-B) ------------------------------------------
+
+  void _openKeyPicker() {
+    setState(() {
+      _showKeyPicker = true;
+      _message = 'Tap your Sa pitch — the note your class sings Sa in.';
+    });
+  }
+
+  /// The student tapped a pitch class: propose that note's middle-octave
+  /// instance (candidateMidisForPitchClass[1]) through the same
+  /// confirmation flow as a sung calibration. [candidateMidisForPitchClass]
+  /// centers on the instance nearest 220 Hz; the stored octave only sets
+  /// playback height, and the proposal's nudge links adjust it.
+  void _proposeKnownKey(int pitchClass) {
+    final midi = candidateMidisForPitchClass(pitchClass)[1];
+    setState(() {
+      _keyPitchClass = pitchClass;
+      _proposalIsKey = true;
+      _proposal = SaCalibration(
+        saHz: hzForMidi(midi),
+        // Not sung-verified: 30.0 is this screen's convention for an
+        // unverified Sa (the best-try save uses the same value), so
+        // confidence reads 'ok', never 'high'.
+        agreementCents: 30.0,
+        calibratedAt: DateTime.now(),
+      );
+      _message = 'Here is your Sa: ${pitchClassNames[pitchClass]}. '
+          'Have a listen — does it sound like yours?';
+    });
+    unawaited(_playProposal());
+  }
+
+  /// Shift a known-key proposal by an octave and replay it. Playback
+  /// comfort only: the diagnosis is octave-invariant, so this never
+  /// changes the student's feedback.
+  void _nudgeProposalOctave(int direction) {
+    final proposal = _proposal;
+    if (proposal == null || !_proposalIsKey) return;
+    setState(() {
+      _proposal = SaCalibration(
+        saHz: direction < 0 ? proposal.saHz / 2 : proposal.saHz * 2,
+        agreementCents: proposal.agreementCents,
+        calibratedAt: proposal.calibratedAt,
+      );
+    });
+    unawaited(_playProposal());
+  }
+
+  Widget _buildKeyPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var i = 0; i < 12; i++)
+              ChoiceChip(
+                label: Text(pitchClassNames[i]),
+                selected: _keyPitchClass == i,
+                onSelected: (_) => _proposeKnownKey(i),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: () => setState(() {
+            _showKeyPicker = false;
+            _message = 'Sing your Sa — the home note you sing '
+                'everything from — and hold it steady. We will listen '
+                'three times.';
+          }),
+          child: const Text('Back to singing my Sa'),
+        ),
+      ],
+    );
+  }
+
   // --- UI -------------------------------------------------------------------
 
   @override
@@ -335,6 +435,7 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
 
   Widget _buildFlow() {
     final proposal = _proposal;
+    final proposalHz = _proposal?.saHz ?? 0.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -346,7 +447,9 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
-        if (proposal == null) ...[
+        if (proposal == null && _showKeyPicker) ...[
+          _buildKeyPicker(),
+        ] else if (proposal == null) ...[
           _buildProgressDots(),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -369,6 +472,12 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          TextButton(
+            onPressed: (_isRecording || _isAnalyzing || _isSaving)
+                ? null
+                : _openKeyPicker,
+            child: const Text('My teacher gave me my pitch'),
+          ),
           const Text(
             'You can do this any time from Profile.',
             textAlign: TextAlign.center,
@@ -398,6 +507,25 @@ class _SaCalibrationScreenState extends State<SaCalibrationScreen> {
             onPressed: _isSaving ? null : _rejectProposal,
             child: const Text('Not Quite — Try Again'),
           ),
+          if (_proposalIsKey && proposalHz > 0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: (_isSaving || proposalHz < 130)
+                      ? null
+                      : () => _nudgeProposalOctave(-1),
+                  child: const Text('Hear it lower'),
+                ),
+                TextButton(
+                  onPressed: (_isSaving || proposalHz > 330)
+                      ? null
+                      : () => _nudgeProposalOctave(1),
+                  child: const Text('Hear it higher'),
+                ),
+              ],
+            ),
+          ],
         ],
       ],
     );
